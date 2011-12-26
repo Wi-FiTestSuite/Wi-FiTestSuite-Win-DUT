@@ -1,0 +1,113 @@
+body {
+  margin:        0px;
+  padding:       0px;
+  font-family:   Verdana, Arial, Sans-Serif;
+  font-size:     9pt;
+	font-style:    normal;
+	font-weight:   normal;
+  background:    #EAEAEA;
+}
+
+#title {
+  position:           absolute;
+  height:             80px;
+  top:                5px;
+  left:               0px;
+  right:              0px;
+  background:         #5797BE;
+  vertical-align:     middle;
+  color:              #FFFFFF;
+  background-image:   url("/presentation/header-gradient.png");
+  background-repeat:  repeat-x;
+}
+
+#title p {
+  font-size:      large;
+  margin-top:     20px;
+  margin-left:    65px;
+  margin-bottom:  0px;
+  padding:        0px;
+}
+
+#title p span {
+  font-size:    small;
+  margin-left:  10px;
+  padding:      0px;
+}
+
+#mainframe {
+  position:       relative;
+  top:            90px;
+  margin-left:    145px;
+  margin-top:     0pt;
+  margin-right:   5px;
+  margin-bottom:  10px;
+  padding-left:   0px;
+  padding-right:  0px;
+  border-style:   solid;
+  border-color:   #26334C;
+  border-width:   1px;
+  background:     #FFFFFF;
+}
+
+#content {
+  margin-left:   0px;
+  margin-top:    0px;
+  margin-right:  0px;
+  margin-bottom: 0px;
+  padding-left:  10px;
+  padding-right: 10px;
+}
+
+#menu {
+  position:     absolute;
+  top:          90px;
+  left:         5px;
+  width:        135px;
+  padding:      0px;
+  margin:       0px;
+  border-style: solid;
+  border-color: #26334C;
+  border-width: 1px;
+  background:   #FFFFFF;
+  text-align:   left;
+}
+
+#framehead {
+  background-image:   url("/presentation/header-gradient-small.png");
+  background-repeat:  repeat-x;
+  color:              #FFFFFF;
+  height:             20px;
+  font-weight:        bold;
+  text-align:         center;
+}
+
+h1 {
+  font-size:      150%;
+  border-bottom:  1px solid #aaaaaa;
+}
+
+h2 {
+  font-size: 120%;
+}
+
+table {
+  border-style:     solid;
+  border-width:     1px;
+  border-color:     #26334C;
+  border-spacing:   0px;
+  border-collapse:  collapse;
+}
+
+th {
+  background-image:   url("/presentation/header-gradient-small.png");
+  background-repeat:  repeat-x;
+  color:              #FFFFFF;
+}
+
+td {
+  border-style: solid;
+  border-width: 1px;
+  border-color: #26334C;
+}
+

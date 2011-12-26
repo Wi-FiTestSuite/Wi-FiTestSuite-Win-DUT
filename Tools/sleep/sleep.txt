@@ -1,0 +1,11 @@
+SYNOPSIS
+
+    sleep time
+
+DESCRIPTION
+
+    time is the number of seconds to pause.
+
+EXAMPLES
+
+    sleep 3600

@@ -1,0 +1,1 @@
+RaOID.exe sta_send_probe_req %*

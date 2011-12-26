@@ -1,0 +1,1 @@
+RaOID.exe sta_set_p2p %*
