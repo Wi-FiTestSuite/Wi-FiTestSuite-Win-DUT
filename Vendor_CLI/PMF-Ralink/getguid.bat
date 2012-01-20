@@ -1,0 +1,1 @@
+RaOID.exe enumguid all

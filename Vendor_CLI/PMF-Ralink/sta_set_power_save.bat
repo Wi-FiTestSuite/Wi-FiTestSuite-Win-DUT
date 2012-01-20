@@ -1,0 +1,1 @@
+RaOID.exe sta_set_power_save %*

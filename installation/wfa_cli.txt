@@ -24,8 +24,12 @@ sta_block_icmp_response-FALSE,
 set_amsdu-FALSE,
 set_ampdu-FALSE,
 set_addba_reject-FALSE,
-
-
+sta_set_security-FALSE,
+sta_send_frame-FALSE,
+wlantest_send_frame-FALSE,
+dev_send_frame-FALSE,
+sta_set_power_save-FALSE,
+sta_disconnect-FALSE,
 
 
 

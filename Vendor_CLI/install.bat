@@ -3,12 +3,14 @@
 set RALINK_CLI_VER=RA3592-1
 set INTEL_CLI_VER=6200-1
 set REALTEK_CLI_VER=RT8192-1
+set RALINK_PMF_CLI_VER=RA3593-1
 
-echo "Install CLI's For STA (INTEL/RALINK/Realtek)?"
+echo "Install CLI's For STA (INTEL/RALINK/Realtek/PMF-RALINK)?"
 set /p Input=
 if /i "%Input%"=="Intel" (goto Intel)
 if /i "%Input%"=="Realtek" (goto Realtek)
 if /i "%Input%"=="RALINK" (goto Ralink)
+if /i "%Input%"=="PMF-RALINK" (goto PMF-Ralink)
 else exit /b
 
 
@@ -54,3 +56,20 @@ echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\Ralink" > C:\WFA\WfaEndpoint\sigma_settings
 netsh wlan show interfaces > C:\WFA\Temp\temp.txt
 FOR /F "tokens=2 delims=: " %%i IN ('findstr GUID C:\Wfa\Temp\temp.txt') DO @echo DEVICE={%%i} >> C:\WFA\WfaEndpoint\sigma_settings.txt
 echo VERSION=%Ralink_CLI_VER% >> C:\WFA\WfaEndpoint\sigma_settings.txt
+
+
+:PMF-Ralink
+echo PMF Ralink
+IF EXIST C:\WFA\CLIs\Ralink (
+rmdir /S /Q  C:\WFA\CLIs\Ralink
+mkdir C:\WFA\CLIs\Ralink
+) ELSE (
+mkdir C:\WFA\CLIs\Ralink
+)
+xcopy /S /R /Y Ralink\*.* C:\WFA\CLIs\Ralink\
+echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\Ralink" > C:\WFA\WfaEndpoint\sigma_settings.txt
+netsh wlan show interfaces > C:\WFA\Temp\temp.txt
+FOR /F "tokens=2 delims=: " %%i IN ('findstr GUID C:\Wfa\Temp\temp.txt') DO @echo DEVICE={%%i} >> C:\WFA\WfaEndpoint\sigma_settings.txt
+echo VERSION=%Ralink_PMF_CLI_VER% >> C:\WFA\WfaEndpoint\sigma_settings.txt
+
+
