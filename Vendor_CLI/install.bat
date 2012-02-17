@@ -41,7 +41,7 @@ mkdir C:\WFA\CLIs\Intel
 )
 xcopy /S /R /Y Intel-6300\*.* C:\WFA\CLIs\Intel\
 echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\Intel" > C:\WFA\WFAEndpoint\sigma_settings.txt
-echo DEVICE=6300>> C:\WFA\WFA_Endpoint\sigma_settings.txt
+echo DEVICE=6300>> C:\WFA\WFAEndpoint\sigma_settings.txt
 echo VERSION=%INTEL_CLI_VER% >> C:\WFA\WfaEndpoint\sigma_settings.txt
 C:\WFA\CLIs\Intel\RegEditSigma.msi
 goto :EOF
@@ -56,7 +56,7 @@ mkdir C:\WFA\CLIs\Intel
 )
 xcopy /S /R /Y Intel-6200\*.* C:\WFA\CLIs\Intel\
 echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\Intel" > C:\WFA\WFAEndpoint\sigma_settings.txt
-echo DEVICE=6200>> C:\WFA\WFA_Endpoint\sigma_settings.txt
+echo DEVICE=6200>> C:\WFA\WFAEndpoint\sigma_settings.txt
 echo VERSION=%INTEL_CLI_VER% >> C:\WFA\WfaEndpoint\sigma_settings.txt
 C:\WFA\CLIs\Intel\RegEditSigma.msi
 goto :EOF
