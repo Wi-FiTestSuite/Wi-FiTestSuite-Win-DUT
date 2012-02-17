@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_agt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_agtctrl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_ca.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_ca_resp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_cmds.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_dut.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_main.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_miscs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_rsp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_sock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_tg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_tlv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_ver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wfa_wmmps.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="iphdr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resolve.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Win7-Dut.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_cmdproc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_cmdtbl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_cs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_dut.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_dut_init.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_miscs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_sock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_tg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_thr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_tlv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_typestr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wfa_wmmps.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
