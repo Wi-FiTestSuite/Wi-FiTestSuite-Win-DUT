@@ -6039,6 +6039,12 @@ int wfaStaPresetParameters(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    DPRINT_INFO(WFA_OUT,"\nCurrent Supplicant value: %d\n",geSupplicant);
    DPRINT_INFO(WFA_OUT,"\nReceived Supplicant value: %d\n",presetParams->supplicant);
   
+   // For Win 7 - DUT the supplicant is always ZeroConfig and preset =1
+   if (presetParams->supplicant)
+   {
+		   presetDone = 1;
+   }
+
 
 #if defined(_CYGWIN) || defined(_WINDOWS)
   /* switch(presetParams->supplicant)
