@@ -192,7 +192,8 @@ int CheckIcmpReplyHeader(char *buf, int bytes)
         hdrlen = (v4hdr->ip_verlen & 0x0F) * 4;
 
 		icmphdr =(ICMP_HDR *) ( buf + hdrlen );
-        // printf("\nReply type - calculation");				
+        //printf("\nReply type - calculation");				
+		//printf("\nReply type - %d",icmphdr->icmp_type);
 		if( icmphdr->icmp_type == ICMPV4_ECHO_REPLY_TYPE)
 		{
            //printf("\nReply type - Echo reply");				
