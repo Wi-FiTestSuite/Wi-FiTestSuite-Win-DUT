@@ -405,5 +405,19 @@ int strcasecmp(const char *s1, const char *s2)
     return toupper((unsigned char)*s1) - toupper((unsigned char)*s2);
 }
 
+/* Left trim of space */
+char *ltrim(char *s)
+{
+	while(isspace(*s)) s++;
+	return s;
+}
 
+/* Right trim of space */
+char *rtrim(char *s)
+{
+	char* back = s + strlen(s);
+	while(isspace(*--back));
+	*(back+1) = '\0';
+	return s;
+}  
 #endif

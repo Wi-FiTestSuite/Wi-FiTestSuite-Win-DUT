@@ -110,6 +110,7 @@
 #include "wfa_tg.h"
 #include "wfa_cmds.h"
 #include "wfa_rsp.h"
+#include "wfa_miscs.h"
 #ifdef WFA_WMM_EXT
 #ifdef WFA_WMM_PS_EXT
 #include "wfa_wmmps.h"
@@ -787,9 +788,19 @@ int wfaStaGetIpConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 			  }
 
 	}
-	 sprintf(gCmdStr, "netsh interface ip show addresses name=\"%s\"  > c:\\windows\\temp\\getcon.txt",&Interfacename[0]);
 
-	 //printf("Executing %s\n",gCmdStr);
+	if(getIpConf->cmdsu.ipTypeV4V6 == 2)
+	{
+	 sprintf(gCmdStr, "netsh interface ipv6 show addresses interface=\"%s\"  > c:\\windows\\temp\\getcon.txt",&Interfacename[0]);
+	}
+	else
+	{
+	 sprintf(gCmdStr, "netsh interface ip show addresses name=\"%s\"  > c:\\windows\\temp\\getcon.txt",&Interfacename[0]);
+	}
+
+
+
+	 printf("Executing %s\n",gCmdStr);
 	 system(gCmdStr);
      tmpfd = fopen("c:\\windows\\temp\\getcon.txt", "r+");
 #else
@@ -840,6 +851,26 @@ int wfaStaGetIpConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
             else
                strncpy(ifinfo->ipaddr, "none", 15);
         }
+		/* ip v6 addresss */
+		if(strncmp(str, "Address", 7) ==0)
+        {
+			ifinfo->ipTypeV6 = 1;
+            str = strtok(NULL, " ");
+            //str = strtok(NULL, " ");
+			memset(ifinfo->ipV6addr,'\0',48);
+            if(str != NULL)
+            {
+			   printf("\nThe IP length %dEnd\n",strlen(str));
+			   printf("\nThe IP  %sEnd\n",str);
+
+			   strncpy(ifinfo->ipV6addr, str, strlen(str));
+               ifinfo->ipaddr[strlen(str)-1]='\0';
+            }
+            else
+               strncpy(ifinfo->ipaddr, "none", 15);
+			break;
+        }
+
 
         /* check the mask */
         if(strncmp(str, "Subnet", 6) ==0)
@@ -7823,13 +7854,17 @@ int wfaGetEnvVal(char * in_value,char * out_value,int size)
 	if(file_hd != NULL && !ferror(file_hd))
 	{
 		fgets(gCmdStr,WFA_CMD_STR_SZ,file_hd);
+		strcpy(out_value,gCmdStr);
+		out_value = rtrim(out_value);
+		/*
 		str=strtok(gCmdStr," ");
 		strcpy(out_value,str);
-		//printf("In GetEnv token %s*** The return value:%s***\n",str,out_value);
+		printf("In GetEnv token %s*** The return value:%s***\n",str,out_value);
 		str=strtok(NULL," ");
 		if(strlen(str) >2)
 			sprintf(&out_value[strlen(out_value)]," %s",str);
-		//printf("In GetEnv token %s**** The return value:%s***\n",str,out_value);
+			*/
+		printf("In GetEnv token %s**** The return value:%s***\n",str,out_value);
 		fclose(file_hd);
 	}
 	else
@@ -7837,7 +7872,7 @@ int wfaGetEnvVal(char * in_value,char * out_value,int size)
 		out_value = NULL;
 	}
 
-	printf("Exit wfaGetEnvVal.. ");
+	printf("\n Exit wfaGetEnvVal.. ");
 	return 1;
 }
 

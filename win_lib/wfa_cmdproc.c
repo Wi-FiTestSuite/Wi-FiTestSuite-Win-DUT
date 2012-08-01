@@ -670,8 +670,10 @@ int xcCmdProcAgentSendPing(char *pcmdStr, BYTE *aBuf, int *aLen)
 
         if(strcasecmp(str, "destination") == 0)
         {
+			memset(staping->dipaddr,'\0',IPV6_ADDRESS_STRING_LEN);
             str = strtok_r(NULL, ",", &pcmdStr);  
-            strncpy(staping->dipaddr, str, 15);
+			DPRINT_INFO(WFA_OUT, "UCC destination %s\n", str);
+            strncpy(staping->dipaddr, str, strlen(str));
             DPRINT_INFO(WFA_OUT, "destination %s\n", staping->dipaddr);
         }
         if(strcasecmp(str, "frameSize") == 0)
@@ -699,6 +701,14 @@ int xcCmdProcAgentSendPing(char *pcmdStr, BYTE *aBuf, int *aLen)
                 staping->type = 1; 
             else
                 staping->type = 0;
+        }
+        if(strcasecmp(str, "iptype") == 0)
+        {
+            str = strtok_r(NULL, ",", &pcmdStr);
+            if(strcasecmp(str, "2") == 0)
+				staping->ipType = 2; 
+            else
+                staping->ipType = 1;
         }
 		if(strcasecmp(str, "qos") == 0)
 		{
@@ -795,6 +805,27 @@ int xcCmdProcStaGetIpConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
 
     slen = strlen(str);
     memcpy(getipconf.intf, str, slen);
+
+    str = strtok_r(NULL, ",", &pcmdStr);
+
+	if(str != NULL)
+	{
+		if(strcasecmp(str, "type") == 0)
+		   str = strtok_r(NULL, ",", &pcmdStr);  
+		else
+		{
+		   DPRINT_ERR(WFA_ERR, "invalid type name\n");
+		   return FALSE;
+		}
+		getipconf.cmdsu.ipTypeV4V6 = atoi(str);  
+        DPRINT_INFO(WFA_OUT, "Ip type %d\n", getipconf.cmdsu.ipTypeV4V6);
+
+
+
+	}
+
+
+
     wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_TLV, sizeof(dutCommand_t), (BYTE *)&getipconf, aBuf);
 
     *aLen = 4+sizeof(getipconf);
@@ -861,6 +892,15 @@ int xcCmdProcStaSetIpConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
             strncpy(setip->sec_dns, str, 15);
             DPRINT_INFO(WFA_OUT, "dns s %s\n", setip->sec_dns);
         }
+        else if(strcasecmp(str, "type") == 0)
+        {
+            str = strtok_r(NULL, ",", &pcmdStr);
+            if(strcasecmp(str, "2") == 0)
+				setip->ipType = 2; 
+            else
+                setip->ipType = 1;
+        }
+
         else
         {
             DPRINT_ERR(WFA_ERR, "invalid command\n");

@@ -64,12 +64,13 @@
 
 typedef struct _tg_ping_start
 {
-    char dipaddr[IPV4_ADDRESS_STRING_LEN];  /* destination/remote ip address */
+    char dipaddr[IPV6_ADDRESS_STRING_LEN];  /* destination/remote ip address */
     int  frameSize;
     float  frameRate;
     int  duration;
     int  type;
 	int  qos;
+	int	 ipType;
 } tgPingStart_t;
 
 typedef struct ca_sta_set_ip_config
@@ -81,6 +82,7 @@ typedef struct ca_sta_set_ip_config
     char defGateway[WFA_IP_ADDR_STR_LEN];
     char pri_dns[WFA_IP_ADDR_STR_LEN];
     char sec_dns[WFA_IP_ADDR_STR_LEN];
+	int	 ipType;
 } caStaSetIpConfig_t;
 
 typedef struct ca_sta_verify_ip_connection
@@ -563,6 +565,7 @@ typedef struct dut_commands
        caStaUpload_t        upload;
        caStaSetWMM_t        setwmm;
        staDebugSet_t        dbg;	   
+	   int ipTypeV4V6;
    } cmdsu;    
 } dutCommand_t;
 

@@ -69,6 +69,8 @@
 /* maximum number of streams to support */
 //#define WFA_MAX_WMM_STREAMS            4 
 #define IPV4_ADDRESS_STRING_LEN    16
+#define IPV6_ADDRESS_STRING_LEN    64
+
 
 #define  MAX_PROFILE_NUM        6
 #define  MINISECONDS            1000

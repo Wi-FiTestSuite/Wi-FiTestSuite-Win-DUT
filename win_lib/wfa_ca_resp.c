@@ -301,15 +301,22 @@ int wfaStaGetIpConfigResp(BYTE *cmdBuf)
         break;
 
         case STATUS_COMPLETE:
-        if(strlen(getIpConfigResp->cmdru.getIfconfig.dns[0]) == 0)
-                *getIpConfigResp->cmdru.getIfconfig.dns[0] = '\0';
-        if(strlen(getIpConfigResp->cmdru.getIfconfig.dns[1]) == 0)
-                *getIpConfigResp->cmdru.getIfconfig.dns[1] = '\0';
+			if(getIpConfigResp->cmdru.getIfconfig.ipTypeV6 == 1)
+			{
+				sprintf(gRespStr, "status,COMPLETE,ip,%s\r\n", getIpConfigResp->cmdru.getIfconfig.ipV6addr);
+			}
+			else
+			{
+				if(strlen(getIpConfigResp->cmdru.getIfconfig.dns[0]) == 0)
+						*getIpConfigResp->cmdru.getIfconfig.dns[0] = '\0';
+				if(strlen(getIpConfigResp->cmdru.getIfconfig.dns[1]) == 0)
+						*getIpConfigResp->cmdru.getIfconfig.dns[1] = '\0';
 
-        sprintf(gRespStr, "status,COMPLETE,dhcp,%i,ip,%s,mask,%s,primary-dns,%s\r\n", getIpConfigResp->cmdru.getIfconfig.isDhcp,
-                      getIpConfigResp->cmdru.getIfconfig.ipaddr,
-                      getIpConfigResp->cmdru.getIfconfig.mask,
-                      getIpConfigResp->cmdru.getIfconfig.dns[0]);
+				sprintf(gRespStr, "status,COMPLETE,dhcp,%i,ip,%s,mask,%s,primary-dns,%s\r\n", getIpConfigResp->cmdru.getIfconfig.isDhcp,
+							  getIpConfigResp->cmdru.getIfconfig.ipaddr,
+							  getIpConfigResp->cmdru.getIfconfig.mask,
+							  getIpConfigResp->cmdru.getIfconfig.dns[0]);
+			}
         break;
 
         default:

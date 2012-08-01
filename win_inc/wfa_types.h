@@ -70,7 +70,8 @@
 #define WFA_MAX_DNS_NUM      2
 #define WFA_MAC_ADDR_STR_LEN 20
 
-#define WFA_CLI_CMD_RESP_LEN 128
+#define WFA_IP_V6_ADDR_STR_LEN  48
+#define WFA_CLI_CMD_RESP_LEN 512
 
 #ifdef WFA_P2P
 #define WFA_P2P_DEVID_LEN 16
