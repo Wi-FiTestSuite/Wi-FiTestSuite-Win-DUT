@@ -13,8 +13,8 @@ Result=1
 [{EC8F71AD-B5E7-4D4A-A69C-CE78CCF4B8FF}-SdStartCopy2-0]
 Result=1
 [Application]
-Name=REALTEK CE Wireless LAN Software
-Version=1.00.0145
+Name=REALTEK 11n PCIE Wireless LAN Driver and Utility
+Version=1.00.0112
 Company=REALTEK Semiconductor Corp.
 Lang=0009
 [{EC8F71AD-B5E7-4D4A-A69C-CE78CCF4B8FF}-SdFinishReboot-0]

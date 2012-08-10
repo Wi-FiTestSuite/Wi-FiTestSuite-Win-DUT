@@ -1,5 +1,9 @@
 Realtek WiFi Sigma Endpoint Release Note
 =======================================================================
+v1.12 - 2012-08-10, Bruce
+1. Update RtlLib.dll to v700.1072.0810.2012 for WPS adding response type in the P2P
+	probe response.
+=======================================================================
 v1.11 - 2011-06-15, Bruce
 1. Update sigma-console.exe v5.7.615.2011. Fix item 5.1.18/7.1.6.
 =======================================================================
