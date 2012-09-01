@@ -56,7 +56,7 @@
 #ifndef WFA_VER_H
 #define WFA_VER_H
 
-#define WFA_SYSTEM_VER      "WINv07.00.00-RC"        /* Sigma WIN_DUT V3.01.01
+#define WFA_SYSTEM_VER      "WINv07.00.00"        /* Sigma WIN_DUT V3.01.01
                                                      -- Buffer adjustment to larger size.
                                                      -- REWRITE THE RECEIVING FUNCTION FOR WINDOWS. EACH THREAD TO HANDLE A 
                                                         SINGLE RECEIVING.
@@ -66,6 +66,7 @@
 													 Simga Windows DUT for P2P - Release Candidate 1
 												     -- Sigma Windows DUT for Miracast RC Release
 													 -- Sigma 7.0.0 RC release
+													 -- Sigma 7.0.0 Release
 												  */
 
 #endif
