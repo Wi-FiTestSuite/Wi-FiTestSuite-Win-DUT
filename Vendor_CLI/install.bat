@@ -4,15 +4,17 @@ set RALINK_CLI_VER=RA3592-1
 set INTEL_CLI_VER=6200-1
 set REALTEK_CLI_VER=RT8192-1
 set RALINK_PMF_CLI_VER=RA3593-1
+set REALTEK_TDLS_CLI_VER=RT8192-1
 
-echo "Install CLI's For STA (INTEL-P2P/RALINK-P2P/Realtek/RALINK-PMF/INTEL-6300/INTEL-6200)?"
+echo "Install CLI's For STA (INTEL-P2P/RALINK-P2P/REALTEK-P2P/RALINK-PMF/INTEL-6300/INTEL-6200/REALTEK-TDLS)?"
 set /p Input=
 if /i "%Input%"=="Intel-P2P" (goto Intel-P2P)
-if /i "%Input%"=="Realtek" (goto Realtek)
+if /i "%Input%"=="REALTEK-P2P" (goto Realtek)
 if /i "%Input%"=="RALINK-P2P" (goto Ralink-P2P)
 if /i "%Input%"=="RALINK-PMF" (goto Ralink-PMF)
 if /i "%Input%"=="Intel-6300" (goto Intel-6300)
 if /i "%Input%"=="Intel-6200" (goto Intel-6200)
+if /i "%Input%"=="REALTEK-TDLS" (goto Realtek-TDLS)
 else exit /b
 
 
@@ -75,6 +77,22 @@ echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\Realtek" > C:\WFA\WfaEndpoint\sigma_setting
 echo DEVICE=rtl8192s >> C:\WFA\WfaEndpoint\sigma_settings.txt
 echo VERSION=%REALTEK_CLI_VER% >> C:\WFA\WfaEndpoint\sigma_settings.txt
 goto :EOF
+
+:Realtek-TDLS
+echo Realtek-TDLS
+IF EXIST C:\WFA\CLIs\Realtek (
+rmdir /S /Q  C:\WFA\CLIs\Realtek
+mkdir C:\WFA\CLIs\Realtek
+) ELSE (
+mkdir C:\WFA\CLIs\Realtek
+)
+xcopy /S /R /Y Realtek-TDLS\*.* C:\WFA\CLIs\Realtek\
+echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\Realtek" > C:\WFA\WfaEndpoint\sigma_settings.txt
+echo DEVICE=rtl8192s >> C:\WFA\WfaEndpoint\sigma_settings.txt
+echo VERSION=%REALTEK_TDLS_CLI_VER% >> C:\WFA\WfaEndpoint\sigma_settings.txt
+xcopy /R /Y Realtek-TDLS\wfa_cli.txt C:\WFA\WfaEndpoint\wfa_cli.txt
+goto :EOF
+
 
 :Ralink-P2P
 echo P2P Ralink
