@@ -56,7 +56,7 @@
 #ifndef WFA_VER_H
 #define WFA_VER_H
 
-#define WFA_SYSTEM_VER      "WINv05.00.00"        /* Sigma WIN_DUT V3.01.01
+#define WFA_SYSTEM_VER      "WINv07.01.00"        /* Sigma WIN_DUT V3.01.01
                                                      -- Buffer adjustment to larger size.
                                                      -- REWRITE THE RECEIVING FUNCTION FOR WINDOWS. EACH THREAD TO HANDLE A 
                                                         SINGLE RECEIVING.
@@ -67,6 +67,7 @@
 
 													 - ( merge of TDLS + HotSpot PF#2)
 													 SIGMA WIN 7 DUT for SIGMA 5.0.0 Release 
+													 SIGMA WIN 7 DUT for SIGMA 7.1.0 Release 
 												  */
 
 #endif
