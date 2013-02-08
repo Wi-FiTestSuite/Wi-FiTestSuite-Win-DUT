@@ -6797,6 +6797,9 @@ int wfaStaSetEapFASTWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *r
 	  sprintf(gCmdStr,"\tphase2=\"auth=%s\"\n",setFAST->innerEAP);
 	  fputs(gCmdStr, file);
 
+	  sprintf(gCmdStr,"\tca_cert=\"%s.pem\"\n",setFAST->trustedRootCA);
+	  fputs(gCmdStr, file);
+
 	  sprintf(gCmdStr,"\tanonymous_identity=\"anonymous\"\n");
 	  fputs(gCmdStr, file);
 
