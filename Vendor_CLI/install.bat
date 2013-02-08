@@ -72,7 +72,7 @@ mkdir C:\WFA\CLIs\Realtek
 ) ELSE (
 mkdir C:\WFA\CLIs\Realtek
 )
-xcopy /S /R /Y P2P-Realtek\*.* C:\WFA\CLIs\Realtek\
+xcopy /S /R /Y Realtek-P2P\*.* C:\WFA\CLIs\Realtek\
 echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\Realtek" > C:\WFA\WfaEndpoint\sigma_settings.txt
 echo DEVICE=rtl8192s >> C:\WFA\WfaEndpoint\sigma_settings.txt
 echo VERSION=%REALTEK_CLI_VER% >> C:\WFA\WfaEndpoint\sigma_settings.txt
