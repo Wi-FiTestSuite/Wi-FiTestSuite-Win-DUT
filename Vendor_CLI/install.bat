@@ -107,7 +107,7 @@ echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\Ralink" > C:\WFA\WfaEndpoint\sigma_settings
 netsh wlan show interfaces > C:\WFA\Temp\temp.txt
 FOR /F "tokens=2 delims=: " %%i IN ('findstr GUID C:\Wfa\Temp\temp.txt') DO @echo DEVICE={%%i} >> C:\WFA\WfaEndpoint\sigma_settings.txt
 echo VERSION=%Ralink_CLI_VER% >> C:\WFA\WfaEndpoint\sigma_settings.txt
-
+goto :EOF
 
 :Ralink-PMF
 echo PMF Ralink
