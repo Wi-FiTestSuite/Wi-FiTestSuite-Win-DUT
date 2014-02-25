@@ -86,7 +86,7 @@ DPRINT_INFO(WFA_OUT, "Inside TLV...\n");
    if(the_value != NULL && the_len != 0)
       memcpy((data+4), (BYTE *)the_value, the_len);
 
-   return TRUE;
+   return WFA_SUCCESS;
 }
 
 /*
@@ -104,7 +104,7 @@ BOOL wfaDecodeTLV(BYTE *tlv_data, int tlv_len, WORD *ptag, int *pval_len, BYTE *
    if(pvalue == NULL)
    {
        DPRINT_ERR(WFA_ERR, "Parm buf invalid\n");
-       return FALSE;
+       return WFA_FAILURE;
    }
 #ifdef _WINDOWS
    *ptag = (WORD) data->tag; 
@@ -113,13 +113,13 @@ BOOL wfaDecodeTLV(BYTE *tlv_data, int tlv_len, WORD *ptag, int *pval_len, BYTE *
 #endif
    *pval_len = data->len;
    if(tlv_len < *pval_len)
-       return FALSE;
+       return WFA_FAILURE;
    if(*pval_len != 0 && *pval_len < MAX_PARMS_BUFF)
    {
       memcpy(pvalue, tlv_data+4, *pval_len);
    }
 
-   return TRUE;
+   return WFA_SUCCESS;
 }
 
 /*
@@ -135,7 +135,7 @@ WORD wfaGetTLVTag(BYTE *tlv_data)
    if(ptlv != NULL)
       return ptlv->tag;
    
-   return TRUE;
+   return WFA_SUCCESS;
 }
 
 /*
@@ -149,11 +149,11 @@ BOOL wfaSetTLVTag(WORD new_tag, BYTE *tlv_data)
    wfaTLV *ptlv = (wfaTLV *)tlv_data;
 
    if(tlv_data == NULL)
-      return FALSE;
+      return WFA_FAILURE;
 
    ptlv->tag = new_tag;
 
-   return TRUE;
+   return WFA_SUCCESS;
 }
 
 /*
@@ -167,7 +167,7 @@ WORD wfaGetTLVLen(BYTE *tlv_data)
    wfaTLV *ptlv = (wfaTLV *)tlv_data;
 
    if(tlv_data == NULL)
-     return FALSE;
+     return WFA_FAILURE;
 
    return ptlv->len;
 }
@@ -182,9 +182,9 @@ WORD wfaGetTLVLen(BYTE *tlv_data)
 BOOL wfaGetTLVvalue(int value_len, BYTE *tlv_data, BYTE *pvalue)
 {
     if(tlv_data == NULL)
-      return FALSE;
+      return WFA_FAILURE;
 
     memcpy(pvalue, tlv_data+WFA_TLV_HEAD_LEN, value_len);
 
-    return TRUE;
+    return WFA_SUCCESS;
 }

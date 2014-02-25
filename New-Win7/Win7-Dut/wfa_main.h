@@ -57,10 +57,10 @@
 #ifndef _WFA_MAIN_H
 #define _WFA_MAIN_H
 
-#define WFA_MAX_TRAFFIC_STREAMS            3
+#define WFA_MAX_TRAFFIC_STREAMS            16
 
 /* maximum number of streams to support */
-#define WFA_MAX_WMM_STREAMS            4 
+#define WFA_MAX_WMM_STREAMS            16
 
 #define MAX_CMD_BUFF        1024 
 #define MAX_PARMS_BUFF      640 
@@ -70,16 +70,19 @@
 #define WFA_BUFF_32         32
 #define WFA_BUFF_64         64
 #define WFA_BUFF_128        128
+#define WFA_BUFF_256        256
 #define WFA_BUFF_512        512
-#define WFA_BUFF_1K         1024
-
-#define WFA_CMD_STR_SZ      512 
+//#define WFA_BUFF_1K         1024
+#define WFA_BUFF_4K         4096
+#define WFA_BUFF_1K         WFA_BUFF_4K   /* work around a buff size */
+//#define WFA_CMD_STR_SZ      2048
+#define WFA_CMD_STR_SZ      1024 
 
 /* WMM TRAFFIC CLASS LEVEL */
-#define WFA_TRAFFIC_CLASS_NUM   6
+#define WFA_TRAFFIC_CLASS_NUM   12
 
 /* Threads to handle WMM traffic */
-#define WFA_THREADS_NUM         6
+#define WFA_THREADS_NUM         12
 
 enum tg_port
 {

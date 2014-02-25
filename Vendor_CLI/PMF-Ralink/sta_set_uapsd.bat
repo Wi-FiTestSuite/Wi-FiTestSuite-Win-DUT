@@ -1,1 +1,0 @@
-RaOID.exe sta_set_uapsd %*

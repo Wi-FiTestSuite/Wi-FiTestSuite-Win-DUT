@@ -71,7 +71,12 @@
 #include <fcntl.h>          /* for fcntl() */
 #include <errno.h>
 
-#define MAX_UDP_LEN     2048
+//#define MAX_UDP_LEN      8192 /* (1024 * 4) */
+#define MAX_UDP_LEN        16384 
+#define MAX_RCV_BUF_LEN  32*1024
+//#define MAX_RCV_BUF_LEN  64*1024
+#define MAX_ETH_PAYLOAD_LEN   1450
+#define MAX_LEGACY_PAYLOAD_LEN    1000
 
 struct sockfds
 {

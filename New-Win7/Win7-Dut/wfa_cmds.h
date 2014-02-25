@@ -62,14 +62,22 @@
 #ifndef _WFA_CMDS_H
 #define _WFA_CMDS_H
 
+typedef enum wfa_onoffType
+{
+   WFA_OFF = 0,
+   WFA_ON = 1,
+} wfaOnOffType;
+
+
 typedef struct _tg_ping_start
 {
-    char dipaddr[IPV4_ADDRESS_STRING_LEN];  /* destination/remote ip address */
+    char dipaddr[IPV6_ADDRESS_STRING_LEN];  /* destination/remote ip address */
     int  frameSize;
     float  frameRate;
     int  duration;
     int  type;
-	int  qos;
+    int  qos;
+    int  ipType;
 } tgPingStart_t;
 
 typedef struct ca_sta_set_ip_config
@@ -85,134 +93,135 @@ typedef struct ca_sta_set_ip_config
 
 typedef struct ca_sta_verify_ip_connection
 {
-   char dipaddr[WFA_IP_ADDR_STR_LEN];
-   int timeout;
+    char dipaddr[WFA_IP_ADDR_STR_LEN];
+    int timeout;
 } caStaVerifyIpConnect_t;
 
 
 typedef struct ca_sta_set_encryption
 {
-   char intf[WFA_IF_NAME_LEN];
-   char ssid[WFA_SSID_NAME_LEN];
-   int encpType;
-   char keys[4][32];  /* 26 hex */
-   int activeKeyIdx;
+    char intf[WFA_IF_NAME_LEN];
+    char ssid[WFA_SSID_NAME_LEN];
+    int encpType;
+    char keys[4][32];  /* 26 hex */
+    int activeKeyIdx;
 } caStaSetEncryption_t;
 
 typedef struct ca_sta_set_mode
 {
-   char intf[WFA_IF_NAME_LEN];
-   char ssid[WFA_SSID_NAME_LEN];
-   char mode;
-   int encpType;
-   int channel;
-   char keys[4][32];  /* 26 hex */
-   int activeKeyIdx;
+    char intf[WFA_IF_NAME_LEN];
+    char ssid[WFA_SSID_NAME_LEN];
+    char mode;
+    int encpType;
+    int channel;
+    char keys[4][32];  /* 26 hex */
+    int activeKeyIdx;
 } caStaSetMode_t;
 
 typedef enum wfa_supplicant_names
-{	
-	eWindowsZeroConfig = 1,	
-	eMarvell,
-	eIntelProset,
-	eWpaSupplicant,	
-	eCiscoSecureClient,	
-	eOpen1x,
-	eWin7Supplicant,
-	eDefault
+{ 
+    eWindowsZeroConfig = 1, 
+    eMarvell,
+    eIntelProset,
+    eWpaSupplicant, 
+    eCiscoSecureClient, 
+    eOpen1x,
+    eWin7Supplicant,
+    eDefault
 } wfaSupplicantName;
 
 typedef enum wfa_preambleType
-{	
-	eLong = 1,	
-	eShort
+{ 
+    eLong = 1, 
+    eShort
 } wfaPreambleType;
 
 typedef enum wfa_WirelessMode
-{	
-	eModeB = 1,
-	eModeBG,
-	eModeA,
-	eModeABG,
-	eModeAN,
-	eModeGN,
-	eModeNL,
+{ 
+    eModeB = 1,
+    eModeBG,
+    eModeA,
+    eModeABG,
+    eModeAN,
+    eModeGN,
+    eModeNL,
 } wfaWirelessMode;
+
 
 typedef enum wfa_reset_prog
 {
-	eResetProg11n =1,
+    eResetProg11n =1,
 } wfaResetProg;
 
 typedef struct ca_sta_preset_parameters
 {
-	char intf[WFA_IF_NAME_LEN];	
-	wfaSupplicantName supplicant;
-	BYTE rtsFlag;
-	WORD rtsThreshold;
-	BYTE fragFlag;
-	WORD fragThreshold;
-	BYTE preambleFlag;
-	wfaPreambleType preamble;
-	BYTE modeFlag;
-	wfaWirelessMode wirelessMode;
-	BYTE psFlag;
-	BYTE legacyPowerSave;
-	BYTE wmmFlag;
-	BYTE wmmState;
-	BYTE reset;
-	BYTE ht;    // temperary for high throughput
+    char intf[WFA_IF_NAME_LEN]; 
+    wfaSupplicantName supplicant;
+    BYTE rtsFlag;
+    WORD rtsThreshold;
+    BYTE fragFlag;
+    WORD fragThreshold;
+    BYTE preambleFlag;
+    wfaPreambleType preamble;
+    BYTE modeFlag;
+    wfaWirelessMode wirelessMode;
+    BYTE psFlag;
+    BYTE legacyPowerSave;
+    BYTE wmmFlag;
+    BYTE wmmState;
+    BYTE reset;
+    BYTE ht;    // temperary for high throughput
 #define NOACK_BE       0
 #define NOACK_BK       1
 #define NOACK_VI       2
 #define NOACK_VO       3
-	unsigned char noack_be;
-	unsigned char noack_bk;
-	unsigned char noack_vi;
-	unsigned char noack_vo;
+    unsigned char noack_be;
+    unsigned char noack_bk;
+    unsigned char noack_vi;
+    unsigned char noack_vo;
 } caStaPresetParameters_t;
 
 typedef struct ca_sta_set_psk
 {
-   char intf[WFA_IF_NAME_LEN];
-   char ssid[WFA_SSID_NAME_LEN];
-   BYTE passphrase[64];
-   char keyMgmtType[8];  /* WPA-PSK */
-   int encpType;    /* TKIP    */
+    char intf[WFA_IF_NAME_LEN];
+    char ssid[WFA_SSID_NAME_LEN];
+    BYTE passphrase[64];
+    char keyMgmtType[8];  /* WPA-PSK */
+    int encpType;    /* TKIP    */
 } caStaSetPSK_t;
 
 typedef struct ca_sta_set_eaptls
 {
-   char intf[WFA_IF_NAME_LEN];
-   char ssid[WFA_SSID_NAME_LEN];
-   char keyMgmtType[8];
-   char encrptype[9];
-   char trustedRootCA[128];
-   char clientCertificate[128];
+    char intf[WFA_IF_NAME_LEN];
+    char ssid[WFA_SSID_NAME_LEN];
+    char keyMgmtType[8];
+    char encrptype[9];
+    char trustedRootCA[128];
+    char clientCertificate[128];
 } caStaSetEapTLS_t;
 
 typedef struct ca_sta_set_eapttls
 {
-   char intf[WFA_IF_NAME_LEN];
-   char ssid[WFA_SSID_NAME_LEN];
-   char username[32];
-   char passwd[16];
-   char keyMgmtType[8];
-   char encrptype[9];
-   char trustedRootCA[32];
-   char clientCertificate[32];
+    char intf[WFA_IF_NAME_LEN];
+    char ssid[WFA_SSID_NAME_LEN];
+    char username[32];
+    char passwd[16];
+    char keyMgmtType[8];
+    char encrptype[9];
+    char trustedRootCA[32];
+    char clientCertificate[32];
 } caStaSetEapTTLS_t;
 
 typedef struct ca_sta_set_eapsim
 {
-   char intf[WFA_IF_NAME_LEN];
-   char ssid[WFA_SSID_NAME_LEN];
-   char username[32];
-   char passwd[96];
-   char keyMgmtType[8];
-   char encrptype[9];
-   char	tripletCount;
-   char tripletSet[3][64];
+    char intf[WFA_IF_NAME_LEN];
+    char ssid[WFA_SSID_NAME_LEN];
+    char username[32];
+    char passwd[96];
+    char keyMgmtType[8];
+    char encrptype[9];
+    char tripletCount;
+    char tripletSet[3][64];
 } caStaSetEapSIM_t;
 
 #ifdef WFA_P2P
@@ -346,7 +355,7 @@ typedef struct ca_sta_set_eapfast
    char encrptype[9];
    char trustedRootCA[32];
    char innerEAP[16];
-   char	validateServer;
+   char validateServer;
    char pacFileName[32];
 } caStaSetEapFAST_t;
 
@@ -358,37 +367,37 @@ typedef struct ca_sta_set_eapaka
    char passwd[96];
    char keyMgmtType[8];
    char encrptype[9];
-   char	tripletCount;
+   char tripletCount;
    char tripletSet[3][96];
 } caStaSetEapAKA_t;
 
 typedef struct ca_sta_set_systime
 {
-	BYTE month;
-	BYTE date;
-	WORD year;
-	BYTE hours;
-	BYTE minutes;
-	BYTE seconds;
+   BYTE month;
+   BYTE date;
+   WORD year;
+   BYTE hours;
+   BYTE minutes;
+   BYTE seconds;
 } caStaSetSystime_t;
 
 typedef struct ca_sta_set_11n
 {
-	char intf[WFA_IF_NAME_LEN];
-	BOOL _40_intolerant;
-	BOOL addba_reject;
-	BOOL ampdu;
-	BOOL amsdu;
-	BOOL greenfield;
-	BOOL sgi20;
-	unsigned short stbc_rx;
-	unsigned short smps;
-	char width[8];
-	char mcs_fixedrate[4];
-	BOOL mcs32;
-	BOOL rifs_test;
-	unsigned char txsp_stream;
-	unsigned char rxsp_stream;
+   char intf[WFA_IF_NAME_LEN];
+   BOOL _40_intolerant;
+   BOOL addba_reject;
+   BOOL ampdu;
+   BOOL amsdu;
+   BOOL greenfield;
+   BOOL sgi20;
+   unsigned short stbc_rx;
+   unsigned short smps;
+   char width[8];
+   char mcs_fixedrate[4];
+   BOOL mcs32;
+   BOOL rifs_test;
+   unsigned char txsp_stream;
+   unsigned char rxsp_stream;
 } caSta11n_t;
 
 #define WFA_ENABLE 1
@@ -397,46 +406,59 @@ typedef struct ca_sta_set_11n
 
 typedef struct ca_sta_set_wireless
 {
-	char intf[WFA_IF_NAME_LEN];
-	char band [8];
+   char intf[WFA_IF_NAME_LEN];
+   char band [8];
 #define NOACK_BE       0
 #define NOACK_BK       1
 #define NOACK_VI       2
 #define NOACK_VO       3
-	unsigned char noAck[4];
+   unsigned char noAck[4];
 } caStaSetWireless_t;
 
 typedef struct ca_sta_send_addba
 {
-	char intf[WFA_IF_NAME_LEN];
-	unsigned short tid;	
+   char intf[WFA_IF_NAME_LEN];
+   unsigned short tid; 
 } caStaSetSendADDBA_t;
 
 typedef struct ca_sta_set_rifs
 {
-	char intf [WFA_IF_NAME_LEN];
-	unsigned int action;
+   char intf [WFA_IF_NAME_LEN];
+   unsigned int action;
 
 } caStaSetRIFS_t;
 
 typedef struct ca_sta_send_coexist_mgmt
 {
-	char intf[WFA_IF_NAME_LEN];
-	char type[16];
-	char value[16];
+   char intf[WFA_IF_NAME_LEN];
+   char type[16];
+   char value[16];
 } caStaSendCoExistMGMT_t;
+
+enum {
+   eDEF_WPA2 = 1,
+   eDEF_WMM = 2,
+   eDEF_11N = 3,
+   eDEF_VHT = 4,
+   eDEF_P2P = 5,
+   eDEF_PMF = 6,
+   eDEF_MCAST = 7,
+   eDEF_WMMPS = 8,
+   eDEF_HS20 = 9,
+   eDEF_WMMAC = 10,
+};
 
 typedef struct ca_sta_reset_default
 {
     char intf[WFA_IF_NAME_LEN];
-	char set[8];
+    char set[8];
 
 } caStaResetDefault_t;
 
 typedef struct ca_sta_ReAssociate
 {
     char intf[WFA_IF_NAME_LEN];
-	char bssid[24];
+    char bssid[24];
 } caStaReAssoc_t;
 
 typedef struct ca_sta_set_uapsd
@@ -480,39 +502,40 @@ typedef struct config
 
 typedef struct wmm_tsinfo
 {
-unsigned int Reserved1 :1;
-unsigned int TID       :4;
-unsigned int direction :2;
-unsigned int dummy1    :1;
-unsigned int dummy2    :1;
-unsigned int Reserved2 :1;
-unsigned int PSB       :1;
-unsigned int UP        :3;
-unsigned int Reserved3 :2;
-unsigned int Reserved4 :1;
-unsigned int Reserved5 :7;
+   unsigned int Reserved1 :1;
+   unsigned int TID       :4;
+   unsigned int direction :2;
+   unsigned int dummy1    :1;
+   unsigned int dummy2    :1;
+   unsigned int Reserved2 :1;
+   unsigned int PSB       :1;
+   unsigned int UP        :3;
+   unsigned int Reserved3 :2;
+   unsigned int Reserved4 :1;
+   unsigned int Reserved5 :7;
 }wmmtsinfo_t;
+
 typedef struct wmm_tspec
 {
-wmmtsinfo_t      tsinfo;
-BOOL Fixed;//The MSDU Fixed Bit
-unsigned short size;//The MSDU Size
-unsigned short maxsize;//MAximum MSDU Size
-unsigned int   min_srvc;//The minimum Service Interval
-unsigned int   max_srvc;//The maximum Service Interval
-unsigned int inactivity;//Inactivity Interval
-unsigned int suspension;//The Suspension Interval
-unsigned int srvc_strt_tim;//The Service Start Time
-unsigned int mindatarate;//The Minimum Data Rate
-unsigned int meandatarate;//The Minimum Data Rate
-unsigned int peakdatarate;//The Minimum Data Rate
-unsigned int burstsize;//The Maximum Burst Size
-unsigned int delaybound;//The Delay Bound
-unsigned int PHYrate;//The minimum PHY Rate
-float sba;//The Surplus Bandwidth Allownce
-unsigned short medium_time;//The medium time
-
+   wmmtsinfo_t      tsinfo;
+   BOOL Fixed;//The MSDU Fixed Bit
+   unsigned short size;//The MSDU Size
+   unsigned short maxsize;//MAximum MSDU Size
+   unsigned int   min_srvc;//The minimum Service Interval
+   unsigned int   max_srvc;//The maximum Service Interval
+   unsigned int inactivity;//Inactivity Interval
+   unsigned int suspension;//The Suspension Interval
+   unsigned int srvc_strt_tim;//The Service Start Time
+   unsigned int mindatarate;//The Minimum Data Rate
+   unsigned int meandatarate;//The Minimum Data Rate
+   unsigned int peakdatarate;//The Minimum Data Rate
+   unsigned int burstsize;//The Maximum Burst Size
+   unsigned int delaybound;//The Delay Bound
+   unsigned int PHYrate;//The minimum PHY Rate
+   float sba;//The Surplus Bandwidth Allownce
+   unsigned short medium_time;//The medium time
 }wmmtspec_t;
+
 typedef struct wmmac_addts
 {
    BYTE       dialog_token;
@@ -549,7 +572,7 @@ typedef struct dut_commands
        tgProfile_t profile;
        tgPingStart_t startPing;
        char ssid[WFA_SSID_NAME_LEN];
-	   char resetProg[16];
+       char resetProg[16];
        caStaSetIpConfig_t ipconfig;
        caStaVerifyIpConnect_t verifyIp;
        caStaSetEncryption_t wep;       
@@ -562,7 +585,7 @@ typedef struct dut_commands
        caStaSetIBSS_t       ibss;
        caStaUpload_t        upload;
        caStaSetWMM_t        setwmm;
-       staDebugSet_t        dbg;	   
+       staDebugSet_t        dbg;    
    } cmdsu;    
 } dutCommand_t;
 

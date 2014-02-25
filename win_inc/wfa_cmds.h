@@ -62,6 +62,13 @@
 #ifndef _WFA_CMDS_H
 #define _WFA_CMDS_H
 
+typedef enum wfa_onoffType
+{
+   WFA_OFF = 0,
+   WFA_ON = 1,
+} wfaOnOffType;
+
+
 typedef struct _tg_ping_start
 {
     char dipaddr[IPV6_ADDRESS_STRING_LEN];  /* destination/remote ip address */
@@ -427,6 +434,19 @@ typedef struct ca_sta_send_coexist_mgmt
 	char type[16];
 	char value[16];
 } caStaSendCoExistMGMT_t;
+
+enum {
+   eDEF_WPA2 = 1,
+   eDEF_WMM = 2,
+   eDEF_11N = 3,
+   eDEF_VHT = 4,
+   eDEF_P2P = 5,
+   eDEF_PMF = 6,
+   eDEF_MCAST = 7,
+   eDEF_WMMPS = 8,
+   eDEF_HS20 = 9,
+   eDEF_WMMAC = 10,
+};
 
 typedef struct ca_sta_reset_default
 {

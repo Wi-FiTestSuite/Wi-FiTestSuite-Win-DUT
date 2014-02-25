@@ -73,11 +73,11 @@ typedef struct ca_sta_get_ipconfig_resp
 {
 
     int isDhcp;
-	int ipTypeV6;
-	char ipV6addr[WFA_IP_V6_ADDR_STR_LEN];
     char ipaddr[WFA_IP_ADDR_STR_LEN];
     char mask[WFA_IP_MASK_STR_LEN];
     char dns[WFA_MAX_DNS_NUM][WFA_IP_ADDR_STR_LEN];
+    int ipTypeV6;
+	char ipV6addr[WFA_IP_V6_ADDR_STR_LEN];
 } caStaGetIpConfigResp_t;
 
 typedef struct ca_sta_get_stats_resp

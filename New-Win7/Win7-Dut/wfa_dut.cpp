@@ -113,7 +113,7 @@ int adj_latency;           /* adjust sleep time due to latency */
 
 char       gnetIf[WFA_BUFF_32];        /* specify the interface to use */
 
-int	geSupplicant;		/* specifies the supplicant, default is zeroconfig */
+int geSupplicant;  /* specifies the supplicant, default is zeroconfig */
 char gStaSSID[WFA_SSID_NAME_LEN];  // For Marvell supplicant 
 
 /* stream table */
@@ -122,8 +122,10 @@ tgStream_t gStreams[WFA_MAX_TRAFFIC_STREAMS];         /* streams' buffers       
 /* the agent local Socket, Agent Control socket and baseline test socket*/
 int        gagtSockfd = -1, gxcSockfd = -1, btSockfd = -1;
 
+int txSockfd = -1;
+
 /* the WMM traffic streams socket fds - Socket Handler table */
-int        tgSockfds[WFA_MAX_TRAFFIC_STREAMS];
+int        tgSockfds[WFA_MAX_WMM_STREAMS];
 
 int tgWMMTestEnable = 0;
 
@@ -144,6 +146,9 @@ unsigned short dfd_lvl = WFA_DEBUG_DEFAULT | WFA_DEBUG_ERR | WFA_DEBUG_INFO;
 int newCmdOn = 0;
 void RefreshTaskbarNotificationArea();
 void wfa_set_envs();
+extern void rand_gen_sid();
+
+int hasRecv = 0;
 
 #ifdef WFA_WMM_EXT
 /*
@@ -175,99 +180,64 @@ extern void wfa_dut_init(BYTE **tBuf, BYTE **rBuf, BYTE **paBuf, BYTE **cBuf, st
 #ifdef _WINDOWS
 DWORD WINAPI wfa_wpa2_sleep_thread(void *thr_param)
 {
-	int sleep_prd = *(int *)thr_param;
-	Sleep(sleep_prd);
-	tmout_stop_send(0);
-	return 0;
-
+   int sleep_prd = *(int *)thr_param;
+   Sleep(sleep_prd);
+   DPRINT_INFOL(WFA_OUT, "Timer timeout after %i milliseconds\n", sleep_prd);
+   tmout_stop_send(0);
+   return 0;
 }
 
 DWORD recvThr;
 
 DWORD WINAPI wfa_recv_thread(void *thr_param)
 {
-	char recvBuf[3072];
-	int newRelease = 0;
+   char recvBuf[3072];
+   int newRelease = 0;
 
-	printf("recv_thread start ...\n");
-	while(1)
-	{
-	    if(!gtgRecv)
-	    {
-			int bw = 0;
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
+
+   while(1)
+   {
+       if(!gtgRecv)
+       {
+          int bw = 0;
             
-			//Sleep(50);
-            //bw = WaitForSingleObject( recv_mutex, INFINITE );
-			WaitForSingleObject( recv_mutex, 400);
-			if(newRelease == 0)
-			{
-               ReleaseMutex(recv_mutex);
-			   newRelease = 1;
-               printf("wake up hold object %i...\n", newRelease);
-			}
-#if 0
-			else
-			{
-				//printf("*");
-			}
-#endif
-   	    }
-	    else
-	    {
-			int ncnt = 0, n=0;
-			newRelease = 0;
+          WaitForSingleObject( recv_mutex, 400);
+          if(newRelease == 0)
+          {
+             ReleaseMutex(recv_mutex);
+             newRelease = 1;
+             DPRINT_INFOL(WFA_OUT, "wake up hold object %i...\n", newRelease);
+          }
+       }
+       else
+       {
+          int ncnt = 0, n=0;
+          newRelease = 0;
 
-            //ReleaseMutex(recv_mutex);
-			if(btSockfd >= 0)
-			{
-                while (n!=-1)
-				{
-				   n = wfaRecvFile(btSockfd, gtgRecv, (char  *)recvBuf);
-
-                   if(gtgTransac != 0 && n != -1) /* for transaction DT3, need to send a response back */
-				   {
-                       char respBuf[WFA_BUFF_1K]; 
-                       int respLen = 0;
-
-                       if(wfaSendShortFile(btSockfd, gtgTransac,(BYTE *) recvBuf, n, (BYTE *) respBuf, &respLen) == DONE)
-                       {
-                           if(wfaCtrlSend(gxcSockfd, (BYTE *)respBuf, respLen)!=respLen)
-                           {
-                               DPRINT_WARNING(WFA_WNG, "wfaCtrlSend Error\n");
-                           }
-                       }
-				   }
-		        }
-				continue;  /* this one assumes normal profile will not co-exist with WMM (IPTV) profile */
-			}
-#if 0
-            for( ncnt = 0; ncnt < WFA_MAX_WMM_STREAMS; ncnt++)
-            {
-                if(tgSockfds[ncnt]>= 0)
+          if(btSockfd >= 0)
+          {
+             while (n!=-1)
+             {
+                n = wfaRecvFile(btSockfd, gtgRecv, (char  *)recvBuf);
+                if(gtgTransac != 0 && n != -1) /* for transaction DT3, need to send a response back */
                 {
-					n = 0;
-		            while (n!=-1)
-					{
-                        n = wfaRecvFile(tgSockfds[ncnt], gStreams[ncnt].id, (char  *)recvBuf);
-#if 0
-						if(n> 0)
-						{
-							printf(".");
-						}
-						else
-							printf("\n");
-#endif
-		            } // While 
-		        }
-            }
-#if 1
-			if(tgWMMTestEnable == 1)
-                Sleep(150);
-#endif
+                    char respBuf[WFA_BUFF_4K]; 
+                    int respLen = 0;
 
-#endif
-	    }
-	}
+                    if(wfaSendShortFile(btSockfd, gtgTransac,(BYTE *) recvBuf, n, (BYTE *) respBuf, &respLen) == DONE)
+                    {
+                        if(wfaCtrlSend(gxcSockfd, (BYTE *)respBuf, respLen)!=respLen)
+                        {
+                           DPRINT_WARNING(WFA_WNG, "wfaCtrlSend Error\n");
+                        }
+                    }
+               }
+            }
+            continue;  /* this one assumes normal profile will not co-exist with WMM (IPTV) profile */
+         }
+      }
+   } /* while */
 }
 
 #endif
@@ -275,7 +245,7 @@ DWORD WINAPI wfa_recv_thread(void *thr_param)
 int
 main(int argc, char **argv)
 {
-    int	      nfds, maxfdn1 = -1, nbytes = 0, cmdLen = 0, isExit = 1;
+    int       nfds, maxfdn1 = -1, nbytes = 0, cmdLen = 0, isExit = 1;
     int       respLen;
     WORD      locPortNo = 0;   /* local control port number                  */
     fd_set    sockSet;         /* Set of socket descriptors for select()     */
@@ -291,26 +261,26 @@ main(int argc, char **argv)
     double rttime = 0;
     tgThrData_t tdata[WFA_THREADS_NUM];
     int cntThr = 0;
-//	LPCTSTR lpszMutex="MUTEX";
+// LPCTSTR lpszMutex="MUTEX";
 #ifndef _WINDOWS
     pthread_attr_t ptAttr;
     int ptPolicy;
     struct sched_param ptSchedParam;
 #else
-	int timer_dur=0;
-	DWORD thr_id;
-//	DWORD recvThr;
-	SECURITY_ATTRIBUTES sa;
+    int timer_dur=0;
+    DWORD thr_id;
+// DWORD recvThr;
+    SECURITY_ATTRIBUTES sa;
     
     DWORD               dwFlags;
 
 #endif
 #endif
-		geSupplicant = 1;
+    geSupplicant = 1;
     if (argc < 3)              /* Test for correct number of arguments */
     {
         DPRINT_ERR(WFA_ERR, "Usage:  %s <command interface> <Local Control Port> \n", argv[0]);
-        exit(1);
+        WFA_EXIT(1);
     }
 #ifndef _WINDOWS
     if(isString(argv[1]) == FALSE)
@@ -319,54 +289,49 @@ main(int argc, char **argv)
         exit(1);
     }
 #else
-	
-	if(argc > 3)
-	{
-		sa.nLength              =   sizeof  (   SECURITY_ATTRIBUTES);
-		sa.lpSecurityDescriptor =   NULL;
-		sa.bInheritHandle       =   TRUE;
-		dwFlags =       FILE_ATTRIBUTE_NORMAL;
-		hStdOut =   CreateFile  ( (LPCWSTR)  argv[3], 
-								GENERIC_WRITE,
-                                0,
-								//FILE_SHARE_READ | FILE_SHARE_WRITE,
-								NULL,
-                                //&sa,
-                                CREATE_ALWAYS,
-                                dwFlags,
-                                NULL
-                            );
+ 
+    if(argc > 3)
+    {
+       sa.nLength              =   sizeof  (   SECURITY_ATTRIBUTES);
+       sa.lpSecurityDescriptor =   NULL;
+       sa.bInheritHandle       =   TRUE;
+       dwFlags =       FILE_ATTRIBUTE_NORMAL;
+       hStdOut =   CreateFile  ( (LPCWSTR)  argv[3], 
+                          GENERIC_WRITE,
+                          0,
+                          //FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          NULL,
+                          //&sa,
+                          CREATE_ALWAYS,
+                          dwFlags,
+                          NULL);
 
-		printf("Redirecting output to %s\n",argv[3]);
-		SetStdHandle(STD_OUTPUT_HANDLE,hStdOut);
-		SetStdHandle(STD_ERROR_HANDLE,hStdOut);
-		freopen(argv[3],"a",stdout);
-		printf("Redirected output to %s\n",argv[3]);
-		printf("Windows DUT - SIGMA - WPA2 04:49 PM 7/09/2009 -- RX FIX");
-		
-	}
+       SetStdHandle(STD_OUTPUT_HANDLE,hStdOut);
+       SetStdHandle(STD_ERROR_HANDLE,hStdOut);
+       freopen(argv[3],"a",stdout);
+       DPRINT_INFOL(WFA_OUT, "Redirected output to %s\n",argv[3]);
+  
+    }
 #endif
 #ifndef _WINDOWS
     strncpy(gnetIf, argv[1], 31);
 #else
-	strncpy(gnetIf, argv[1], 50);
+    strncpy(gnetIf, argv[1], 50);
 #endif
-printf("Interface is %s\n",gnetIf);
+    DPRINT_INFOL(WFA_OUT, "Interface is %s\n",gnetIf);
     if(isNumber(argv[2]) == FALSE)
     {
-        DPRINT_ERR(WFA_ERR, "incorrect port number\n");
-        exit(1);
+        DPRINT_ERR(WFA_ERR, "Incorrect port number\n");
+        WFA_EXIT(1);
     }
 
     locPortNo = atoi(argv[2]);
 
-	/* raise itself priority class first */
-//    SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
-	
+    rand_gen_sid();
+    /* raise itself priority class first */
     //adjust_variation = atoi(argv[3]);
     adj_latency = wfa_estimate_timer_latency() + 2000; /* four more mini */
-	 //adj_latency = wfa_estimate_timer_latency(); /* four more mini */
-	printf("\r\n latency is %d",adj_latency);
+    DPRINT_INFOL(WFA_OUT, "\r\nLatency is %d",adj_latency);
     
     /* allocate the traffic stream table */
     wfa_dut_init(&trafficBuf, &respBuf, &parmsVal, &xcCmdBuf, &toutvalp);
@@ -376,7 +341,7 @@ printf("Interface is %s\n",gnetIf);
     if(gagtSockfd == -1)
     {
        DPRINT_ERR(WFA_ERR, "Failed to open socket\n");
-       exit(1);
+       WFA_EXIT(1);
     }
 
 #ifdef WFA_WMM_EXT
@@ -391,11 +356,11 @@ printf("Interface is %s\n",gnetIf);
 #endif
 
 #ifdef _WINDOWS
-	/* create a receive thread */
+ /* create a receive thread */
     timer_dur = 1000;
 
     recv_mutex = CreateMutex( NULL, FALSE, NULL );
-	WaitForSingleObject( recv_mutex, INFINITE );
+ WaitForSingleObject( recv_mutex, INFINITE );
 
     recvThr = (DWORD) CreateThread(NULL, 0, wfa_recv_thread, (PVOID)&timer_dur, 0,&thr_id);
 #if 0
@@ -403,12 +368,12 @@ printf("Interface is %s\n",gnetIf);
 
     thrPri = GetThreadPriority(recvThr);
 
-	if(thrPri == THREAD_PRIORITY_HIGHEST)
-	    printf("the thread set to highest\n");
-	else
-		printf("can't set thread to highest\n");
+ if(thrPri == THREAD_PRIORITY_HIGHEST)
+     DPRINT_INFO(WFA_OUT, "the thread set to highest\n");
+ else
+  DPRINT_INFO(WFA_OUT, "can't set thread to highest\n");
 #endif
-	// initial some external pointers
+ // initial some external pointers
     wfa_set_envs();
 
 #endif
@@ -417,7 +382,7 @@ printf("Interface is %s\n",gnetIf);
      * Create multiple threads for WMM Stream processing.
      */
     for(cntThr = 0; cntThr< WFA_THREADS_NUM; cntThr++)
-    {	
+    { 
         tdata[cntThr].tid = cntThr;
 #ifndef _WINDOWS
         pthread_mutex_init(&wmm_thr[cntThr].thr_flag_mutex, NULL);
@@ -425,12 +390,14 @@ printf("Interface is %s\n",gnetIf);
         wmm_thr[cntThr].thr_id = pthread_create(&wmm_thr[cntThr].thr, 
                        &ptAttr, wfa_wmm_thread, &tdata[cntThr]);
 #else
-		tdata[cntThr].tid = cntThr;
-		 wmm_thr[cntThr].thr_flag_mutex = CreateMutex( NULL, FALSE, NULL );
-	    WaitForSingleObject( wmm_thr[cntThr].thr_flag_mutex, INFINITE );
-		printf("creating %d\n",cntThr);
-        wmm_thr[cntThr].thr = CreateThread(NULL, 0,(LPTHREAD_START_ROUTINE) wfa_wmm_thread, (PVOID)&tdata[cntThr], 0,
-		&wmm_thr[cntThr].thr_id);
+        tdata[cntThr].tid = cntThr;
+        wmm_thr[cntThr].thr_flag_mutex = CreateMutex( NULL, FALSE, NULL );
+        WaitForSingleObject( wmm_thr[cntThr].thr_flag_mutex, INFINITE );
+#if 0
+        DPRINT_INFOL(WFA_OUT, "Creating thread #%d\n",cntThr);
+#endif
+        wmm_thr[cntThr].thr = CreateThread(NULL, 5242880,(LPTHREAD_START_ROUTINE) wfa_wmm_thread, (PVOID)&tdata[cntThr], 0,
+                                       &wmm_thr[cntThr].thr_id);
 
 //        SetThreadPriority(wmm_thr[cntThr].thr, BELOW_NORMAL_PRIORITY_CLASS);
         
@@ -451,6 +418,7 @@ printf("Interface is %s\n",gnetIf);
 #if 0
         fds.tgfd = &btSockfd; 
 #endif
+//        fds.tgfd = &txSockfd;
 
 #ifdef WFA_WMM_EXT
 #if 0
@@ -462,7 +430,6 @@ printf("Interface is %s\n",gnetIf);
 #endif
 
         wfaSetSockFiDesc(&sockSet, &maxfdn1, &fds);
-		printf("maxfdn1 %i\n", maxfdn1);
 
         /* 
          * The timer will be set for transaction traffic if no echo is back
@@ -477,48 +444,24 @@ printf("Interface is %s\n",gnetIf);
 
         nfds = 0;
 #ifdef _WINDOWS
-		fflush(stdout);
-		/*
-		if(argc > 3)
-		{
-			fclose(stdout);
-			freopen(argv[3],"a",stdout);
-		}
-		*/
-		//Put a sleep so that the thread gets the mutex then main thread gets it
-		Sleep(1);
-#if 0
-	for(cntThr = 0; cntThr< WFA_THREADS_NUM; cntThr++)
-		{
-			DWORD waitRet = 0;
-			if((wmm_thr[cntThr].thr_flag) != 0)
-			{
-				waitRet = WaitForSingleObject( wmm_thr[cntThr].thr_flag_mutex, 5 ) ;
-				printf("\r\nMain got the lock\n");
-				//wmm_thr[cntThr].thr_flag = 0;
-				if(waitRet == WAIT_OBJECT_0)
-				{
-					printf("by signaling lock\n");
-				    ReleaseMutex(wmm_thr[cntThr].thr_flag_mutex);
-				}
-			}
-		}
-#endif
-#endif		
-	if ( (nfds = select(maxfdn1, &sockSet, NULL, NULL, tovalp)) < 0) 
+        fflush(stdout);
+        //Put a sleep so that the thread gets the mutex then main thread gets it
+        Sleep(1);
+#endif  
+        if ( (nfds = select(maxfdn1, &sockSet, NULL, NULL, tovalp)) < 0) 
         {
-	     if (errno == EINTR)
-	  	  continue;		/* back to for() */
-	     else
-		 {
+           if (errno == EINTR)
+              continue;  /* back to for() */
+           else
+           {
 #ifndef _WINDOWS
- 		  DPRINT_WARNING(WFA_WNG, "select error: %i", errno);
+              DPRINT_WARNING(WFA_WNG, "select error: %i", errno);
 #else
-			 int errsv =(int) WSAGetLastError();
-			 DPRINT_WARNING(WFA_WNG, "select error: %i", errsv);
+              int errsv =(int) WSAGetLastError();
+              DPRINT_WARNING(WFA_WNG, "Select error: %i", errsv);
 #endif
-		 }
-	  }
+           }
+        }
 
         if(nfds == 0)
         {
@@ -533,20 +476,19 @@ printf("Interface is %s\n",gnetIf);
                respLen = 0;
 
 #ifdef WFA_WMM_EXT
-	       /*
-		* handle end to end time syc
-		*/
-	       printf("initiate sync message %i\n", asn);
-	       gettimeofday((timeval *)&lstime, NULL);
-	       /*
-		* If your device is BIG ENDIAN, you need to 
-		* modify the the function calls
-		*/
-	       int2BuffBigEndian(asn++, &((tgHeader_t *)trafficBuf)->hdr[8]);
-	       int2BuffBigEndian((int)lstime.tv_sec, &((tgHeader_t *)trafficBuf)->hdr[12]);
-	       int2BuffBigEndian((int)lstime.tv_usec, &((tgHeader_t *)trafficBuf)->hdr[16]);
+               /*
+                * handle end to end time syc
+                */
+               DPRINT_INFOL(WFA_OUT, "Initiate sync message %i\n", asn);
+               gettimeofday((timeval *)&lstime, NULL);
+               /*
+                * If your device is BIG ENDIAN, you need to 
+                * modify the the function calls
+                */
+               int2BuffBigEndian(asn++, &((tgHeader_t *)trafficBuf)->hdr[8]);
+               int2BuffBigEndian((int)lstime.tv_sec, &((tgHeader_t *)trafficBuf)->hdr[12]);
+               int2BuffBigEndian((int)lstime.tv_usec, &((tgHeader_t *)trafficBuf)->hdr[16]);
 #endif
-
                if(wfaSendShortFile(btSockfd, gtgTransac, 
                        trafficBuf, 0, respBuf, &respLen) == DONE)
                {
@@ -555,7 +497,7 @@ printf("Interface is %s\n",gnetIf);
                       DPRINT_WARNING(WFA_WNG, "wfaCtrlSend Error\n");
                   }
                }
-	       continue;
+               continue;
             }
 #ifdef WFA_WMM_EXT
 #ifdef WFA_WMM_PS_EXT
@@ -576,19 +518,20 @@ printf("Interface is %s\n",gnetIf);
 #endif /* WFA_WMM_EXT */
         }
 
-	if (FD_ISSET(gagtSockfd, &sockSet)) 
+        if (FD_ISSET(gagtSockfd, &sockSet)) 
         {
             /* Incoming connection request */
             gxcSockfd = wfaAcceptTCPConn(gagtSockfd);
             if(gxcSockfd == -1)
             {
                DPRINT_ERR(WFA_ERR, "Failed to open control link socket\n");
-               exit(1);
+               WFA_EXIT(1);
             }
-	}
+        }
 
         /* Control Link port event*/
-        if(gxcSockfd > 0 && FD_ISSET(gxcSockfd, &sockSet)) {
+        if(gxcSockfd > 0 && FD_ISSET(gxcSockfd, &sockSet)) 
+        {
             memset(xcCmdBuf, '\0', WFA_BUFF_1K);  /* reset the buffer */
             nbytes = wfaCtrlRecv(gxcSockfd, xcCmdBuf);
 
@@ -605,47 +548,60 @@ printf("Interface is %s\n",gnetIf);
             }
             else
             {
-				/*  Clean the tray for any in Active icons */
-				RefreshTaskbarNotificationArea();
+                /*  Clean the tray for any in Active icons */
+                RefreshTaskbarNotificationArea();
 
-			   printf("\nThe command Received after socket: %s\n",xcCmdBuf+4);
+                DPRINT_INFOL(WFA_OUT, "\nThe command Received after socket: %s\n",xcCmdBuf+4);
 
-			   memset(parmsVal,'\0',MAX_PARMS_BUFF);
-               /* command received */
-               wfaDecodeTLV(xcCmdBuf, nbytes, &xcCmdTag, &cmdLen, parmsVal);    
-               memset(respBuf, 0, WFA_BUFF_512); 
-               respLen = 0;
+                memset(parmsVal,'\0',MAX_PARMS_BUFF);
+                /* command received */
+                wfaDecodeTLV(xcCmdBuf, nbytes, &xcCmdTag, &cmdLen, parmsVal);    
+                memset(respBuf, 0, WFA_BUFF_512); 
+                respLen = 0;
 
-			   printf("\nThe command Received after decode: %s len: %d\n",parmsVal,cmdLen);
+                DPRINT_INFOL(WFA_OUT, "\nThe command Received after decode: cmdTag %i arguments %s len: %d\n",xcCmdTag, parmsVal,cmdLen);
 
-               /* reset two commond storages used by control functions */
-               memset(gCmdStr, '\0', WFA_CMD_STR_SZ);
-               memset(&gGenericResp, '\0', sizeof(dutCmdResponse_t));
+                /* reset two commond storages used by control functions */
+                memset(gCmdStr, '\0', WFA_CMD_STR_SZ);
+                memset(&gGenericResp, '\0', sizeof(dutCmdResponse_t));
 
-               /* command process function defined in wfa_ca.c and wfa_tg.c */
+                /* command process function defined in wfa_ca.c and wfa_tg.c */
 
-				if((xcCmdTag != 0 && xcCmdTag > WFA_STA_NEW_COMMANDS_START && xcCmdTag < WFA_STA_NEW_COMMANDS_END) && gWfaCmdFuncTbl[xcCmdTag - WFA_STA_NEW_COMMANDS_START + (WFA_STA_COMMANDS_END - 1)] != NULL)
-				{
-				   gWfaCmdFuncTbl[xcCmdTag - WFA_STA_NEW_COMMANDS_START + (WFA_STA_COMMANDS_END - 1)](cmdLen, parmsVal, &respLen, (BYTE *)respBuf);			
-				}
-				else if((xcCmdTag != 0 && xcCmdTag < WFA_STA_COMMANDS_END) && gWfaCmdFuncTbl[xcCmdTag] != NULL)
-				{
-				   gWfaCmdFuncTbl[xcCmdTag](cmdLen, parmsVal, &respLen, (BYTE *)respBuf);
-				}
-				else
-				{	// no command defined
-					gWfaCmdFuncTbl[0](cmdLen, parmsVal, &respLen, (BYTE *)respBuf);
-				}
-				
-				newCmdOn = 1;
+                if((xcCmdTag != 0 
+                      && xcCmdTag > WFA_STA_NEW_COMMANDS_START 
+                      && xcCmdTag < WFA_STA_NEW_COMMANDS_END) 
+                      && gWfaCmdFuncTbl[xcCmdTag - WFA_STA_NEW_COMMANDS_START + (WFA_STA_COMMANDS_END - 1)] != NULL)
+                {
+                    gWfaCmdFuncTbl[xcCmdTag - WFA_STA_NEW_COMMANDS_START + (WFA_STA_COMMANDS_END - 1)](cmdLen, parmsVal, &respLen, (BYTE *)respBuf);   
+                }
+                else if((xcCmdTag != 0 && xcCmdTag < WFA_STA_COMMANDS_END) && gWfaCmdFuncTbl[xcCmdTag] != NULL)
+                {
+                    gWfaCmdFuncTbl[xcCmdTag](cmdLen, parmsVal, &respLen, (BYTE *)respBuf);
+                }
+                else
+                { // no command defined
+                    gWfaCmdFuncTbl[0](cmdLen, parmsVal, &respLen, (BYTE *)respBuf);
+                    DPRINT_INFOL(WFA_OUT, "Not supported command\n");
+                }
+                DPRINT_INFOL(WFA_OUT, "Completed control command\n");
+    
+                newCmdOn = 1;
 
-			   printf("\r\nafter func\n");
-			   
-               if(wfaCtrlSend(gxcSockfd, (BYTE *)respBuf, respLen) != respLen)
-               {
+                if(wfaCtrlSend(gxcSockfd, (BYTE *)respBuf, respLen) != respLen)
+                {
                    DPRINT_WARNING(WFA_WNG, "wfaCtrlSend Error\n");
-               }
-			   
+                   // resend one more time
+                   wfaCtrlSend(gxcSockfd, (BYTE *)respBuf, respLen);
+                }
+      
+                // !!!! a hack !!!!
+                if(xcCmdTag == WFA_TRAFFIC_AGENT_RECV_STOP_TLV)
+                {
+                   
+                   printf("Exiting from Recv %s\n", hasRecv);
+                   Sleep(3000);
+                   exit(0);
+                }
             }
 
         }
@@ -653,48 +609,47 @@ printf("Interface is %s\n",gnetIf);
 #ifdef WFA_WMM_EXT
 #ifndef _WINDOWS
         /* First Check for WMM traffic , higher priority */
-		
+  
         for( ncnt = 0; ncnt < WFA_MAX_WMM_STREAMS; ncnt++)
         {
            if(tgSockfds[ncnt]> 0 && FD_ISSET(tgSockfds[ncnt], &sockSet))
            {
+              int sn,n=0;
+              struct timeval ttval, currTimeVal;
+              while ( n!=-1)
+              { 
+                 n = wfaRecvFile(tgSockfds[ncnt], gStreams[ncnt].id, (char  *)trafficBuf);
+                 sn = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[8]);
+                 ttval.tv_sec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[12]);
+                 ttval.tv_usec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[16]);
+                 gettimeofday(&currTimeVal, NULL);
 
-	      int sn,n=0;
-	      struct timeval ttval, currTimeVal;
-		  while ( n!=-1){ 
-              n = wfaRecvFile(tgSockfds[ncnt], gStreams[ncnt].id, (char  *)trafficBuf);
-              sn = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[8]);
-	      ttval.tv_sec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[12]);
-	      ttval.tv_usec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[16]);
-	      gettimeofday(&currTimeVal, NULL);
+                 /*
+                  * take the end2end stats
+                  */
+                 if(e2eCnt < 6000)
+                 {
+                    tgE2EStats_t *ep = &e2eStats[e2eCnt++];
+                    ep->seqnum = sn;
+                    ep->rsec = ttval.tv_sec;
+                    ep->rusec = ttval.tv_usec;
 
+                    ep->lsec = currTimeVal.tv_sec;
+                    ep->lusec = currTimeVal.tv_usec;
 
-	      /*
-	       * take the end2end stats
-	       */
-	      if(e2eCnt < 6000)
-	      {
-                  tgE2EStats_t *ep = &e2eStats[e2eCnt++];
-                  ep->seqnum = sn;
-                  ep->rsec = ttval.tv_sec;
-		  ep->rusec = ttval.tv_usec;
-
-                  ep->lsec = currTimeVal.tv_sec;
-		  ep->lusec = currTimeVal.tv_usec;
-
-		  if(ep->lusec  < 0)
-		  {
-                      ep->lsec -=1;
-                      ep->lusec += 1000000;
-		  }
-		  else if(ep->lusec >= 1000000)
-		  {
-                      ep->lsec += 1;
-		      ep->lusec -= 1000000;
-		  }
-	       }
-		   } // While 
-		   } 
+                    if(ep->lusec  < 0)
+                    {
+                       ep->lsec -=1;
+                       ep->lusec += 1000000;
+                    }
+                    else if(ep->lusec >= 1000000)
+                    {
+                       ep->lsec += 1;
+                       ep->lusec -= 1000000;
+                    }
+                 }
+              } // While 
+           } 
         }
 #endif
 #endif
@@ -705,66 +660,66 @@ printf("Interface is %s\n",gnetIf);
         {
             int n =0;
 #ifdef WFA_WMM_EXT
-	        struct timeval ttval;
+            struct timeval ttval;
 #endif
-		
-	        memset(trafficBuf, 0, sizeof(trafficBuf));
+  
+            memset(trafficBuf, 0, sizeof(trafficBuf));
 
             if((btSockfd != -1 && FD_ISSET(btSockfd, &sockSet))) 
             {
                 int i = gtgRecv?gtgRecv:gtgTransac;
            
-			    while(n != -1)
-			    {
+                while(n != -1)
+                {
                     n = wfaRecvFile(btSockfd, i, (char  *)trafficBuf);
-				
-#ifdef WFA_WMM_EXT
-	                ttval.tv_sec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[12]);
-	                ttval.tv_usec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[16]);
+    
+#ifdef WFAN_WMM_EXT
+                    ttval.tv_sec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[12]);
+                    ttval.tv_usec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[16]);
 #endif
 
-            /* If it is testing transaction, once it receives a packet
-             * send a new one right away.
-             */
+                    /* If it is testing transaction, once it receives a packet
+                     * send a new one right away.
+                     */
                     if(n != -1 )
                     {
-#ifdef WFA_WMM_EXT
-	        /*
-		 * end2end time sync:
-		 *   1. retrieve the timestamp
-		 *   2. calculate the Trt(1) roundtrip delay
-		 *   3. store the minimum Trt(1)
-		 *   4. store Cdut(t1) and Ctm(2)
-		 */
-		                gettimeofday(&lrtime, NULL);
-		                /* get a round trip time */
+#ifdef WFAN_WMM_EXT
+                       /*
+                        * end2end time sync:
+                        *   1. retrieve the timestamp
+                        *   2. calculate the Trt(1) roundtrip delay
+                        *   3. store the minimum Trt(1)
+                        *   4. store Cdut(t1) and Ctm(2)
+                        */
+                        gettimeofday(&lrtime, NULL);
+                        /* get a round trip time */
                         rttime = wfa_ftime_diff(&lstime, &lrtime);
 
-		                if(min_rttime > rttime)
-		                {
-		                    min_rttime = rttime;
-		                    ttval.tv_sec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[12]);
-		                    ttval.tv_usec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[16]);
-		                    if(gtgStartSync != 0) /* "start" used to sync clock */
-		                    {
-		                        gtgPktRTDelay = min_rttime; 
+                        if(min_rttime > rttime)
+                        {
+                            min_rttime = rttime;
+                            ttval.tv_sec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[12]);
+                            ttval.tv_usec = bigEndianBuff2Int(&((tgHeader_t *)trafficBuf)->hdr[16]);
+                            if(gtgStartSync != 0) /* "start" used to sync clock */
+                            {
+                                gtgPktRTDelay = min_rttime; 
 
                                 /* adjust the local clock against TM clock */
-		                        ttval.tv_usec += (long) min_rttime/2*1000000; /* add one way delay */
-		                        if(ttval.tv_usec > 1000000)
-		                        {
-		                           ttval.tv_sec +=1;
-			                       ttval.tv_usec -=1000000;
-		                        }
+                                ttval.tv_usec += (long) min_rttime/2*1000000; /* add one way delay */
+                                if(ttval.tv_usec > 1000000)
+                                {
+                                   ttval.tv_sec +=1;
+                                   ttval.tv_usec -=1000000;
+                                }
 
-		                        settimeofday(&ttval, NULL);
-			   
-		                    } 
+                                settimeofday(&ttval, NULL);
+      
+                            } 
                         }
 
                         gettimeofday(&lstime, NULL);
-		                int2BuffBigEndian(lstime.tv_sec, &((tgHeader_t *)trafficBuf)->hdr[12]);
-		                int2BuffBigEndian(lstime.tv_usec, &((tgHeader_t *)trafficBuf)->hdr[16]);
+                        int2BuffBigEndian(lstime.tv_sec, &((tgHeader_t *)trafficBuf)->hdr[12]);
+                        int2BuffBigEndian(lstime.tv_usec, &((tgHeader_t *)trafficBuf)->hdr[16]);
 #endif
                         if(gtgTransac != 0)
                         {
@@ -778,21 +733,21 @@ printf("Interface is %s\n",gnetIf);
                                 }
                             }
                         }
-			      }
-		       }
-			}
+                    }
+                }
+            }
 
-#ifdef WFA_WMM_EXT
-		    if(gtgStartSync != 0 )
-		    {
+#ifdef WFAN_WMM_EXT
+            if(gtgStartSync != 0 )
+            {
 #ifdef _WINDOWS
-		        Sleep(5);
+               Sleep(5);
 #else
-		        usleep(5000);
+               usleep(5000);
 #endif
-		    }
+            }
 #endif
-       }
+        }
 
 #endif
 
@@ -813,11 +768,11 @@ printf("Interface is %s\n",gnetIf);
          * If the profile is set for file transfer, this will run to
          * complete (blocking).
          */
-		
+  
         if(gtgSend != 0 && gtgTransac == 0)
         {
             tgStream_t *myStream = NULL;
-			
+   
             memset(respBuf, 0, WFA_BUFF_512); 
             respLen = 0;
             myStream = findStreamProfile(gtgSend);
@@ -825,21 +780,20 @@ printf("Interface is %s\n",gnetIf);
             signal(SIGALRM, tmout_stop_send);
             alarm(myStream->profile.duration);
 #else
-			
-		   //SetTimer(0, 0, (myStream->profile.duration)*1000, (TIMERPROC)tmout_stop_send);
-		   printf("\r\n WPA2 -Setting timer for %d ms\n",(myStream->profile.duration)*1000);
-		   timer_dur = (myStream->profile.duration)*1000;
-		   CreateThread(NULL, 0, wfa_wpa2_sleep_thread, (PVOID)&timer_dur, 0,&thr_id);
-		  
+   
+            DPRINT_INFO(WFA_OUT, "\r\n WPA2 -Setting timer for %d ms\n",(myStream->profile.duration)*1000);
+            timer_dur = (myStream->profile.duration)*1000;
+            CreateThread(NULL, 0, wfa_wpa2_sleep_thread, (PVOID)&timer_dur, 0,&thr_id);
+    
 #endif
             wfaSendLongFile(btSockfd, gtgSend, respBuf, &respLen );
-			
+   
             if(wfaCtrlSend(gxcSockfd, (BYTE *)respBuf, respLen) != respLen)
             {
                  DPRINT_WARNING(WFA_WNG, "wfaCtrlSend Error\n");
             }
-		} 	   
-	}
+        }     
+    }
 
     /*
      * necessarily free all mallocs for flat memory real-time systems
@@ -864,5 +818,7 @@ printf("Interface is %s\n",gnetIf);
     closesocket(gxcSockfd);
     closesocket(btSockfd);
 #endif
+
+    DPRINT_INFOL(WFA_OUT, "Exiting MAIN\n");
     return 0;
 }

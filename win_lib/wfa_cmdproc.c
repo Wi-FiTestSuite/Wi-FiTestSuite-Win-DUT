@@ -92,7 +92,10 @@ typeNameStr_t keywordStr[] =
     { KW_STREAMID,     "streamid",      NULL},
     { KW_STARTDELAY,   "startdelay",    NULL},     /* It is used to schedule multi-stream test such as WMM */
     { KW_NUMFRAME,     "numframes",      NULL},
-    { KW_USESYNCCLOCK, "useSyncClock",   NULL}
+    { KW_USESYNCCLOCK, "useSyncClock",   NULL},
+    { KW_USERPRIORITY, "userpriority",   NULL},
+    { KW_MAXCNT,       "maxcnt",         NULL},
+    { KW_HTI,       "hti",         NULL}
 }; 
 
 /* profile type string table */
@@ -159,6 +162,8 @@ int xcCmdProcAgentConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
     wfaTLV *hdr = (wfaTLV *)aBuf;
     tgProfile_t tgpf = {0, 0, "", -1, "", -1, 0, 0, 0, TG_WMM_AC_BE, 0};
     tgProfile_t *pf = &tgpf; 
+	pf->hti = 0xFF; //default value 
+
     
     DPRINT_INFO(WFA_OUT, "start xcCmdProcAgentConfig ...\n");
     DPRINT_INFO(WFA_OUT, "params:  %s\n", pcmdStr);
@@ -395,6 +400,28 @@ int xcCmdProcAgentConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
               kwcnt++;
               str = NULL;
 	      break;
+
+	      case KW_HTI:
+			str = strtok_r(NULL, ",", &pcmdStr);
+			if(strcasecmp(str, "on") == 0)
+			{
+				pf->hti = WFA_ON; 
+			}
+			else if(strcasecmp(str, "off") == 0)
+			{
+				pf->hti = WFA_OFF; 
+			}
+			else
+			{
+				DPRINT_ERR(WFA_ERR, "Incorrect HTI vlaue\n");
+				return FALSE;
+			}
+
+			DPRINT_INFO(WFA_OUT, "HTI Value %s\n", str);
+			kwcnt++;
+			str = NULL;
+	      break;
+
 
               default:
                 ;

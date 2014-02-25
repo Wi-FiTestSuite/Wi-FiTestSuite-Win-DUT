@@ -63,7 +63,7 @@
 //#define WFA_P2P
 
 #define WFA_IF_NAME_LEN 16
-#define WFA_VERSION_LEN 16
+#define WFA_VERSION_LEN 64
 #define WFA_SSID_NAME_LEN 64
 #define WFA_IP_ADDR_STR_LEN  16
 #define WFA_IP_MASK_STR_LEN  16
@@ -106,5 +106,11 @@ typedef int BOOL;
     #define    TRUE        0
     #define    DONE        1
 #endif
+
+typedef enum returnTypes
+{
+   WFA_SUCCESS = 0,
+   WFA_FAILURE = 1,
+} retType_t;
 
 #endif

@@ -1,1 +1,0 @@
-/interface {2D0D0387-4000-474C-B2EB-DD84486E3A5F}  /type psk /ssid PMF-4.6 /passphrase 12345678 /encpType AES-CCMP /keymgmttype wpa2-pmf /PMF Required 

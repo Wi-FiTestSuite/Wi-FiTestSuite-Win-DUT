@@ -1,1 +1,0 @@
-RaOID.exe sta_send_frame %*

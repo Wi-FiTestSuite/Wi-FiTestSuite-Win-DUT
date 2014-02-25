@@ -1,7 +1,6 @@
 /****************************************************************************
  *  (c) Copyright 2007 Wi-Fi Alliance.  All Rights Reserved
  *
- *  Author: Sandeep Mohan Bharadwaj	Email:sbharadwaj@wi-fi.org
  *
  *  LICENSE
  *
@@ -84,6 +83,9 @@ extern char WFA_CLI_CMD_DIR[];
 char WFA_CLI_VERSION[32];
 char intfname[64];
 char intfNetName[128];
+// Setting Default DUT Code to HT ( VHT) 
+int progSet = eDEF_VHT;
+
 #endif
 
 #ifdef WFA_WMM_EXT
@@ -97,11 +99,10 @@ void init_thr_flag()
     {
         pthread_mutex_init(&wmm_thr[i].thr_flag_mutex, NULL);
         pthread_cond_init(&wmm_thr[i].thr_flag_cond, NULL);
-	pthread_mutex_init(&wmm_thr[i].thr_flag_mutex, NULL);
+        pthread_mutex_init(&wmm_thr[i].thr_flag_mutex, NULL);
         pthread_cond_init(&wmm_thr[i].thr_flag_cond, NULL);
         wmm_thr[i].thr_flag = 0;
         wmm_thr[i].stop_flag = 0;
-	
     }
 }
 #endif
@@ -110,27 +111,15 @@ void init_thr_flag()
 
 void wfa_dut_init(BYTE **tBuf, BYTE **rBuf, BYTE **paBuf, BYTE **cBuf, struct timeval **timerp)
 {
-#ifdef _WINDOWS
-	char filename[256];
-	char string[256];
-	FILE *tmpfd;
-	int ret;
-#endif
-	int ncnt = 0;
+    int ncnt = 0;
     /* allocate the traffic stream table */
-   // gStreams = (tgStream_t *) malloc(WFA_MAX_TRAFFIC_STREAMS*sizeof(tgStream_t));
-    //if(gStreams == NULL)
-    //{
-      //  DPRINT_ERR(WFA_ERR, "Failed to malloc theStreams\n");
-        //exit(1);
-    //}
 
     for( ncnt = 0; ncnt < WFA_MAX_WMM_STREAMS; ncnt++)
     {
         tgSockfds[ncnt] = -1;
     }
    
-	/* a buffer used to carry receive and send test traffic */
+ /* a buffer used to carry receive and send test traffic */
     *tBuf = (BYTE *) malloc(MAX_UDP_LEN+1); /* alloc a traffic buffer */
     if(*tBuf == NULL)
     {
@@ -155,7 +144,7 @@ void wfa_dut_init(BYTE **tBuf, BYTE **rBuf, BYTE **paBuf, BYTE **cBuf, struct ti
     }
 
     /* control command buf */
-    *cBuf = (BYTE *) malloc(WFA_BUFF_1K);
+    *cBuf = (BYTE *) malloc(WFA_BUFF_4K);
     if(*cBuf == NULL)
     {
         DPRINT_ERR(WFA_ERR, "Failed to malloc control command buf\n");
@@ -180,85 +169,77 @@ void wfa_dut_init(BYTE **tBuf, BYTE **rBuf, BYTE **paBuf, BYTE **cBuf, struct ti
     }
 #ifdef _WINDOWS
 #ifndef WIN_7
-	// Set ZeroConfig as the running supplicant
-	
-		   // Cisco Secure client supplicant
-			DisableCiscoSupplicant();
+     // Cisco Secure client supplicant
+    DisableCiscoSupplicant();
 
-		   // stop the other supplicants and start ZeroConfig
-			// WpaSupplicant supplicant
-		   sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	       DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		   ret = system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
+    // stop the other supplicants and start ZeroConfig
+    // WpaSupplicant supplicant
+    sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
+    DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+    ret = system(gCmdStr);
+    DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
 
-		   // stop the Marvell supplicant
-   			sprintf(gCmdStr, "Taskkill /T /F /IM Mrv8000x.exe");
-			system(gCmdStr);
-			Sleep(1000);
+    // stop the Marvell supplicant
+    sprintf(gCmdStr, "Taskkill /T /F /IM Mrv8000x.exe");
+    system(gCmdStr);
+    Sleep(1000);
 
 
-		   sprintf(gCmdStr, "sc start wzcsvc");
-		   DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
-		   ret = system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
-		   Sleep(500);
-		   sprintf(gCmdStr, "wifi_config -limit %s -enable", gnetIf);
-		   system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
+    sprintf(gCmdStr, "sc start wzcsvc");
+    DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
+    ret = system(gCmdStr);
+    DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
+    Sleep(500);
+    sprintf(gCmdStr, "wifi_config -limit %s -enable", gnetIf);
+    system(gCmdStr);
+    DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
 
-		   geSupplicant = eWindowsZeroConfig;
+    geSupplicant = eWindowsZeroConfig;
 #else
-		   geSupplicant = eWindowsZeroConfig;
+    geSupplicant = eWindowsZeroConfig;
 #endif
-		   DPRINT_INFO(WFA_OUT,"New Supplicant value: %d\n",geSupplicant);
+    DPRINT_INFO(WFA_OUT,"New Supplicant value: %d\n",geSupplicant);
 
-		// End of setting ZeroConfig
-
-
-
+  // End of setting ZeroConfig
 #ifndef WIN_7
-   strncpy(filename,"c:\\WINDOWS\\TEMP\\ipconfig.txt",40);
-   sprintf(gCmdStr, "wifi_config -limit %s -mac > %s ", gnetIf,filename); 
-   system(gCmdStr);
-   tmpfd = fopen(filename, "r+");
-   if(tmpfd == NULL)
-	{
-	  
-	  DPRINT_ERR(WFA_ERR, "file open failed\n");
-	  return ;
-	}
+    strncpy(filename,"c:\\WINDOWS\\TEMP\\ipconfig.txt",40);
+    sprintf(gCmdStr, "wifi_config -limit %s -mac > %s ", gnetIf,filename); 
+    system(gCmdStr);
+    tmpfd = fopen(filename, "r+");
+    if(tmpfd == NULL)
+    {
+       DPRINT_ERR(WFA_ERR, "file open failed\n");
+       return ;
+    }
 
-		fgets(string, 256, tmpfd);
-		fclose(tmpfd);
+    fgets(string, 256, tmpfd);
+    fclose(tmpfd);
 
-		string[8]='\0';
-   sprintf(gCmdStr, "GetVendor  %s > c:\\windows\\temp\\vend.txt", string);
-	strcpy(filename,"c:\\windows\\temp\\vend.txt");
-   printf("Executing %s\n",gCmdStr);
-   system(gCmdStr);
-	tmpfd = fopen(filename, "r+");
-	if(tmpfd == NULL)
-	{
-	  
-	  DPRINT_ERR(WFA_ERR, "file open failed\n");
-	  return ;
-	}
+    string[8]='\0';
+    sprintf(gCmdStr, "GetVendor  %s > c:\\windows\\temp\\vend.txt", string);
+    strcpy(filename,"c:\\windows\\temp\\vend.txt");
+    DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+    system(gCmdStr);
+    tmpfd = fopen(filename, "r+");
+    if(tmpfd == NULL)
+    {
+       DPRINT_ERR(WFA_ERR, "file open failed\n");
+       return ;
+    }
 
-		fgets(string, 256, tmpfd);
-		fclose(tmpfd);
+    fgets(string, 256, tmpfd);
+    fclose(tmpfd);
 
-		if(!_stricmp(string,"Broadcomm"))
-			vend= WMM_BROADCOMM;
-		else if(!_stricmp(string,"Intel"))
-			vend= WMM_INTEL;
-		else if(!_stricmp(string,"Marvell"))
-			vend= WMM_MARVELL;
-		else if(!_stricmp(string,"Atheros"))
-			vend= WMM_ATHEROS;
-
+    if(!_stricmp(string,"Broadcomm"))
+       vend= WMM_BROADCOMM;
+    else if(!_stricmp(string,"Intel"))
+       vend= WMM_INTEL;
+    else if(!_stricmp(string,"Marvell"))
+       vend= WMM_MARVELL;
+    else if(!_stricmp(string,"Atheros"))
+       vend= WMM_ATHEROS;
 #else
-		vend= WMM_BROADCOMM;
+    vend= WMM_BROADCOMM;
 #endif
 
 #endif
@@ -269,67 +250,55 @@ void wfa_dut_init(BYTE **tBuf, BYTE **rBuf, BYTE **paBuf, BYTE **cBuf, struct ti
 #ifdef _WINDOWS
 void wfa_set_envs()
 {
-	char *name, *dest;
-	FILE *envfile = NULL;
-	char line[129];
+    char *name, *dest;
+    FILE *envfile = NULL;
+    char line[129];
 
-	envfile = fopen("sigma_settings.txt", "r");
+    envfile = fopen("sigma_settings.txt", "r");
 
-	if(envfile == NULL)
-	{
-		printf("can't open setting file, exiting ...\n");
-		exit(1);
-	}
+    if(envfile == NULL)
+    {
+       DPRINT_ERR(WFA_ERR, "can't open setting file, exiting ...\n");
+       exit(1);
+    }
 
+    memset(WFA_CLI_CMD_DIR, 0, 64);
+ 
+    while(fgets(line, 128, envfile) != NULL)
+    {
+       if(*line == '#' || *line == 'a')
+       {
+          memset(line, 0, 129);
+          continue;
+       }
 
-	memset(WFA_CLI_CMD_DIR, 0, 64);
+       name = (char *)strtok(line, "=");
+       dest = (char *)strtok(NULL, "=");
 
-	
-	while(fgets(line, 128, envfile) != NULL)
-	{
-		if(*line == '#' || *line == 'a')
-		{
-            memset(line, 0, 129);
-			continue;
-		}
+       if(strcmp(name, "WFA_CLI_STA_DEVICE") == 0)
+       {
+           dest[strlen(dest)-1] = '\0';
+           DPRINT_INFOL(WFA_OUT, "value %s\n", dest);
+           strcpy(WFA_CLI_CMD_DIR, dest);
+           DPRINT_INFOL(WFA_OUT, " %s is %s\n", name, WFA_CLI_CMD_DIR);
+       }
+       else if(strcmp(name, "DEVICE") == 0)
+       {
+           dest[strlen(dest)-1] = '\0';
+           strcpy(intfname, dest);
+           DPRINT_INFO(WFA_OUT, "%s is %s\n", name, intfname);
+       }
+       else if(strcmp(name, "VERSION") == 0)
+       {
+           dest[strlen(dest)-1] = '\0';
+           strcpy(WFA_CLI_VERSION, dest);
+           DPRINT_INFO(WFA_OUT, "%s is %s\n", name, WFA_CLI_VERSION);
+       }
 
-        name = (char *)strtok(line, "=");
-		dest = (char *)strtok(NULL, "=");
+       memset(line, 0, 129);
+    }
 
-		if(strcmp(name, "WFA_CLI_STA_DEVICE") == 0)
-		{
-			dest[strlen(dest)-1] = '\0';
-			printf("value %s\n", dest);
-			strcpy(WFA_CLI_CMD_DIR, dest);
-			printf(" %s is %s\n", name, WFA_CLI_CMD_DIR);
-		}
-		else if(strcmp(name, "DEVICE") == 0)
-		{
-            dest[strlen(dest)-1] = '\0';
-			strcpy(intfname, dest);
-			printf("%s is %s\n", name, intfname);
-		}
-		else if(strcmp(name, "VERSION") == 0)
-		{
-            dest[strlen(dest)-1] = '\0';
-			strcpy(WFA_CLI_VERSION, dest);
-			printf("%s is %s\n", name, WFA_CLI_VERSION);
-		}
-
-		memset(line, 0, 129);
-	}
-
-#if 0
-	strcpy(WFA_CLI_CMD_DIR, getenv("WFA_CLI_STA_DEVICE"));
-
-	printf("CLI path is %s\n", WFA_CLI_CMD_DIR);
-#endif
-
-	// Get the interface name
-
-
-	//reset the env variable status
-	putenv("WFA_CLI_STATUS=0");
-
+    //reset the env variable status
+    _putenv("WFA_CLI_STATUS=0");
 }
 #endif

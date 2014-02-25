@@ -98,7 +98,7 @@ int wfaCreateTCPServSock(unsigned short port)
     struct sockaddr_in servAddr; /* Local address */
     const int on = 1;
 #ifdef _WINDOWS
-	//WSADATA is a struct that is filled up by the call 
+ //WSADATA is a struct that is filled up by the call 
     //to WSAStartup
     WSADATA wsaData;
     BOOL bOpt = TRUE;
@@ -106,7 +106,7 @@ int wfaCreateTCPServSock(unsigned short port)
     //for TCP/IP sockets. Other protocols use similar structures.
     //WSAStartup initializes the program for calling WinSock.
     //The first parameter specifies the highest version of the 
-	//WinSock specification, the program is allowed to use.
+    //WinSock specification, the program is allowed to use.
 
     int wsaret=WSAStartup(0x101,&wsaData);
     //WSAStartup returns zero on success.
@@ -115,8 +115,8 @@ int wfaCreateTCPServSock(unsigned short port)
 
     if(wsaret!=0)
     {
-		DPRINT_ERR(WFA_ERR, "createTCPServSock socket() failed");
-        return FALSE;
+        DPRINT_ERR(WFA_ERR, "createTCPServSock socket() failed");
+        return WFA_FAILURE;
     }
 #endif
 
@@ -124,7 +124,7 @@ int wfaCreateTCPServSock(unsigned short port)
     if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
     {
         DPRINT_ERR(WFA_ERR, "createTCPServSock socket() failed");
-        return FALSE;
+        return WFA_FAILURE;
     }
 
     setsockopt(sock,IPPROTO_TCP,TCP_NODELAY,(char*)&bOpt,sizeof(BOOL));
@@ -142,14 +142,14 @@ int wfaCreateTCPServSock(unsigned short port)
     if (bind(sock, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
     {
         DPRINT_ERR(WFA_ERR, "bind() failed");
-        return FALSE;
+        return WFA_FAILURE;
     }
 
     /* Mark the socket so it will listen for incoming connections */
     if (listen(sock, MAXPENDING) < 0)
     {
         DPRINT_ERR(WFA_ERR, "listen() failed");
-        return FALSE;
+        return WFA_FAILURE;
     }
 
     return sock;
@@ -169,20 +169,20 @@ int wfaCreateUDPSock(char *ipaddr, unsigned short port)
 #ifdef _WINDOWS
     WSADATA wsadata;
     int wsaret=WSAStartup(MAKEWORD(2,2),&wsadata);
-	
+ 
     if(wsaret!=0)
     {
-		int errsv = WSAGetLastError();
-		DPRINT_ERR(WFA_ERR, "createUDPSock socket() falled with error %d",errsv);
-        return FALSE;
+        int errsv = WSAGetLastError();
+        DPRINT_ERR(WFA_ERR, "createUDPSock socket() falled with error %d",errsv);
+        return WFA_FAILURE;
     }
 #endif
     if((udpsock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
     {
-		int errsv = WSAGetLastError();
-		DPRINT_ERR(WFA_ERR, "createUDPSock socket() failed with error %d for port %d",errsv,port);
+        int errsv = WSAGetLastError();
+        DPRINT_ERR(WFA_ERR, "createUDPSock socket() failed with error %d for port %d",errsv,port);
         //DPRINT_ERR(WFA_ERR, "createUDPSock socket() failed");
-        return -1;
+        return WFA_FAILURE;
     }
 #ifndef _WINDOWS
     bzero(&servAddr, sizeof(servAddr));
@@ -206,6 +206,7 @@ struct ip_mreq {
         struct in_addr  imr_multiaddr;  /* IP multicast address of group */
         struct in_addr  imr_interface;  /* local IP address of interface */
 };
+
 int wfaSetSockMcastSendOpt(int sockfd)
 {
     unsigned char ttlval = 1;
@@ -354,14 +355,18 @@ int wfaCtrlSend(int sock, unsigned char *buf, int bufLen)
 {
     int bytesSent = 0;
 
+    // for send start message, it could be "0" Len
     if(bufLen == 0)
-        return FALSE;
+    {
+        DPRINT_WARNING(WFA_WNG, "Buffer Len is 0\n");
+        return bufLen;
+    }
 
     bytesSent = send(sock,( const char *)buf, bufLen, 0); 
 
-    if(bytesSent == -1)
+    if(bytesSent == SOCKET_ERROR)
     {
-       DPRINT_WARNING(WFA_WNG, "Error sending tcp packet\n");
+       DPRINT_WARNING(WFA_WNG, "Error sending tcp packet %d\n", WSAGetLastError());
     }
 
     return bytesSent;
@@ -375,7 +380,7 @@ int wfaCtrlSend(int sock, unsigned char *buf, int bufLen)
 int wfaCtrlRecv(int sock, unsigned char *buf)
 {
    int bytesRecvd = 0;
-   bytesRecvd = recv(sock,(char *) buf, WFA_BUFF_1K-1, 0);
+   bytesRecvd = recv(sock,(char *) buf, WFA_BUFF_4K-1, 0);
 
    return bytesRecvd; 
 }
@@ -418,11 +423,12 @@ int wfaTrafficRecv(int sock, char *buf, struct sockaddr *from)
    /* check the buffer to avoid an uninitialized pointer - bugz 159 */
    if(buf == NULL)
    {
-	   DPRINT_ERR(WFA_ERR, "Uninitialized buffer\n");
-	   return FALSE;
+       DPRINT_ERR(WFA_ERR, "Uninitialized buffer\n");
+       return WFA_FAILURE;
    }
 
-   bytesRecvd = recvfrom(sock, buf, MAX_UDP_LEN, 0, from, &addrLen); 
+//   bytesRecvd = recvfrom(sock, buf, MAX_RCV_BUF_LEN, 0, from, &addrLen);
+     bytesRecvd = recv(sock, buf, MAX_RCV_BUF_LEN, 0); 
 
    return bytesRecvd;
 }
@@ -436,7 +442,7 @@ int wfaGetifAddr(char *ifname, struct sockaddr_in *sa)
     if(fd < 0)
     {
        DPRINT_ERR(WFA_ERR, "socket open error\n");
-       return FALSE;
+       return WFA_FAILURE;
     }
 
     strcpy(ifr.ifr_name, ifname);
@@ -448,12 +454,12 @@ int wfaGetifAddr(char *ifname, struct sockaddr_in *sa)
     }
     else
     {
-         return FALSE;
+         return WFA_FAILURE;
     }
 
     close(fd);
 #endif
-    return FALSE;
+    return WFA_FAILURE;
 }
 
 /*
@@ -484,7 +490,7 @@ int wfaSetProcPriority(int set)
            maxprio = sched_get_priority_max(SCHED_FIFO);
            if(maxprio == -1)
            {
-              return FALSE;
+              return WFA_FAILURE;
            }
 
            schp.sched_priority = maxprio;

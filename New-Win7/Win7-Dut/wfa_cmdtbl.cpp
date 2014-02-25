@@ -144,39 +144,36 @@ xcCommandFuncPtr gWfaCmdFuncTbl[WFA_STA_COMMANDS_END+(WFA_STA_NEW_COMMANDS_END -
     wfaStaSetMode,            /*    WFA_STA_SET_MODE                   (31)*/
     wfaStaUpload,             /*    WFA_STA_UPLOAD                     (32)*/
     wfaStaSetWMM,             /*    WFA_STA_SET_WMM                    (33)*/
-	wfaStaPresetParameters,	  /*    WFA_STA_PRESET_PARAMETERS          (34)*/
-	wfaStaSetEapFAST,		  /*    WFA_STA_SET_EAPFAST_TLV			   (35)*/
-	wfaStaSetEapAKA,		  /*    WFA_STA_SET_EAPAKA_TLV             (36)*/
-	wfaStaSetSystime,		  /*	WFA_STA_SET_SYSTIME_TLV			   (37)*/
-	wfaStaSet11n,   		  /*	WFA_STA_SET_11n_TLV	    		   (38)*/
-	wfaStaSetWireless,		  /*	WFA_STA_SET_WIRELESS_TLV		   (39)*/
-	wfaStaSendADDBA,		  /*	WFA_STA_SEND_ADDBA_TLV			   (40)*/
-	wfaStaSendCoExistMGMT,    /*    WFA_STA_SET_COEXIST_MGMT_TLV       (41)*/
+    wfaStaPresetParameters,   /*    WFA_STA_PRESET_PARAMETERS          (34)*/
+    wfaStaSetEapFAST,         /*    WFA_STA_SET_EAPFAST_TLV            (35)*/
+    wfaStaSetEapAKA,          /*    WFA_STA_SET_EAPAKA_TLV             (36)*/
+    wfaStaSetSystime,         /*    WFA_STA_SET_SYSTIME_TLV            (37)*/
+    wfaStaSet11n,             /*    WFA_STA_SET_11n_TLV                (38)*/
+    wfaStaSetWireless,        /*    WFA_STA_SET_WIRELESS_TLV           (39)*/
+    wfaStaSendADDBA,          /*    WFA_STA_SEND_ADDBA_TLV             (40)*/
+    wfaStaSendCoExistMGMT,    /*    WFA_STA_SET_COEXIST_MGMT_TLV       (41)*/
     wfaStaSetRIFS,            /*    WFA_STA_SET_RIFS_TEST_TLV          (42)*/
-	wfaStaResetDefault,       /*    WFA_STA_RESET_DEFAULT_TLV          (43)*/
-	wfaStaDisconnect,         /*    WFA_STA_DISCONNECT_TLV             (44)*/
-	wfaStaReassociate,         /*   WFA_STA_REASSOCIATE_TLV            (45)*/
-	wfaStaCliCommand,         /*   WFA_STA_CLI_CMD_TLV            (46)*/
-		
+    wfaStaResetDefault,       /*    WFA_STA_RESET_DEFAULT_TLV          (43)*/
+    wfaStaDisconnect,         /*    WFA_STA_DISCONNECT_TLV             (44)*/
+    wfaStaReassociate,        /*   WFA_STA_REASSOCIATE_TLV             (45)*/
+    wfaStaCliCommand,         /*   WFA_STA_CLI_CMD_TLV                 (46)*/
+  
 #ifdef WFA_P2P
 
-	wfaStaGetP2pDevAddress,             /*                    (47)*/
-	wfaStaSetP2p,			  /*				    (48)*/		
-	wfaStaP2pConnect,             /*                         (49)*/    
-	wfaStaP2pJoin, /* 50 */
-	wfaStaP2pStartGrpFormation,             /*                       (51)*/
-
-	wfaStaP2pDissolve,             /*                         (52)*/
-	wfaStaSendP2pInvReq,			  /*				    (53)*/		
-	wfaStaAcceptP2pReq,			  /*	WFA_STA_UPLOAD			    (54)*/		
-	wfaStaSendP2pProvDisReq,             /*                         (55)*/    
-	wfaStaSetWpsPbc,             /*                         (56)*/    
-    
-	wfaStaWpsReadPin,             /*                         (57)*/
-	wfaStaWpsEnterPin,			  /*				    (58)*/		
-	wfaStaGetPsk,             /*                         (59)*/    
-
-#endif	
+    wfaStaGetP2pDevAddress,   /*                                       (47)*/
+    wfaStaSetP2p,             /*                                       (48)*/  
+    wfaStaP2pConnect,         /*                                       (49)*/    
+    wfaStaP2pJoin,            /*                                       (50)*/
+    wfaStaP2pStartGrpFormation, /*                                     (51)*/
+    wfaStaP2pDissolve,        /*                                       (52)*/
+    wfaStaSendP2pInvReq,      /*                                       (53)*/  
+    wfaStaAcceptP2pReq,       /* WFA_STA_UPLOAD                        (54)*/  
+    wfaStaSendP2pProvDisReq,  /*                                       (55)*/    
+    wfaStaSetWpsPbc,          /*                                       (56)*/    
+    wfaStaWpsReadPin,         /*                                       (57)*/
+    wfaStaWpsEnterPin,        /*                                       (58)*/  
+    wfaStaGetPsk,             /*                                       (59)*/    
+#endif 
 };
     
 
@@ -190,5 +187,5 @@ int NotDefinedYet(int len, unsigned char *params, int *respLen, BYTE *respBuf)
 
     /* need to send back a response */
 
-    return TRUE;
+    return WFA_SUCCESS;
 }

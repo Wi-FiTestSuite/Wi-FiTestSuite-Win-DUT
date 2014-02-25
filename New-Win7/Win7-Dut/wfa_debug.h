@@ -68,14 +68,24 @@
 
 #define WFA_DEBUG 1
 
-#define DPRINT_ERR      fprintf(WFA_ERR, "File %s, Line %ld: ", \
+#define DPRINT_ERR      fprintf(WFA_ERR, "ERROR: File %s, Line %ld: ", \
                                __FILE__, (long)__LINE__); \
                         fprintf 
+
+#define DPRINT_INFOL     if(wfa_defined_debug & WFA_DEBUG_INFO) \
+                            fprintf(WFA_OUT, "DEBUG> File %s, Function %s, Line %ld: ", \
+                               __FILE__, __FUNCTION__, (long)__LINE__); \
+                            fprintf
 
 #define DPRINT_INFO     if(wfa_defined_debug & WFA_DEBUG_INFO) \
                             fprintf
 
 #define DPRINT_WARNING  if(wfa_defined_debug & WFA_DEBUG_WARNING) \
+                            fprintf(WFA_WNG, "DEBUG> File %s, Line %ld: ", \
+                               __FILE__, (long)__LINE__); \
                             fprintf
+                     
 
+#define WFA_EXIT(x)     DPRINT_INFOL(WFA_OUT, "Exiting ...\n"); \
+                        exit(x) 
 #endif

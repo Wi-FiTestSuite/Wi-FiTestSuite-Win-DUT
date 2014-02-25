@@ -90,48 +90,49 @@ static unsigned __int64 timeSecOffset = 0;             /* GLOBAL */
 static unsigned __int64 startPerformanceCounter = 0;   /* GLOBAL */ 
 struct timezone 
 {
-  int  tz_minuteswest; /* minutes W of Greenwich */
-  int  tz_dsttime;     /* type of dst correction */
+   int  tz_minuteswest; /* minutes W of Greenwich */
+   int  tz_dsttime;     /* type of dst correction */
 };
 
 #endif
 extern tgStream_t *theStreams;
+extern unsigned short wfa_defined_debug;
 
 tgStream_t *findStreamProfile(int id);
 #if 1
 int gettimeofday1(struct timeval *tv, struct timezone *tz)
 {
-  FILETIME ft;
-  unsigned __int64 tmpres = 0;
-  static int tzflag;
+   FILETIME ft;
+   unsigned __int64 tmpres = 0;
+   static int tzflag;
  
-  if (NULL != tv)
-  {
-    GetSystemTimeAsFileTime(&ft);
+   if (NULL != tv)
+   {
+      GetSystemTimeAsFileTime(&ft);
  
-    tmpres |= ft.dwHighDateTime;
-    tmpres <<= 32;
-    tmpres |= ft.dwLowDateTime;
+      tmpres |= ft.dwHighDateTime;
+      tmpres <<= 32;
+      tmpres |= ft.dwLowDateTime;
  
-    /*converting file time to unix epoch*/
-    tmpres -= DELTA_EPOCH_IN_MICROSECS; 
-    tmpres /= 10;  /*convert into microseconds*/
-    tv->tv_sec = (long)(tmpres / 1000000UL);
-    tv->tv_usec = (long)(tmpres % 1000000UL);
-  }
+      /*converting file time to unix epoch*/
+      tmpres -= DELTA_EPOCH_IN_MICROSECS; 
+      tmpres /= 10;  /*convert into microseconds*/
+      tv->tv_sec = (long)(tmpres / 1000000UL);
+      tv->tv_usec = (long)(tmpres % 1000000UL);
+   }
  
-  if (NULL != tz)
-  {
-    if (!tzflag)
-    {
-      _tzset();
-      tzflag++;
-    }
-    tz->tz_minuteswest = _timezone / 60;
-    tz->tz_dsttime = _daylight;
-  }
+   if (NULL != tz)
+   {
+      if (!tzflag)
+      {
+         _tzset();
+         tzflag++;
+      }
+      tz->tz_minuteswest = _timezone / 60;
+      tz->tz_dsttime = _daylight;
+   }
  
-  return 0;
+   return 0;
 }
 #endif
 /*
@@ -141,7 +142,7 @@ int gettimeofday1(struct timeval *tv, struct timezone *tz)
 
 void printProfile(tgProfile_t *pf)
 {
-    printf("profile type %i direction %i Dest ipAddr %s Dest port %i So ipAddr %s So port %i rate %i duration %i pksize %i\n", pf->profile, pf->direction, pf->dipaddr, pf->dport, pf->sipaddr, pf->sport, pf->rate, pf->duration, pf->pksize);
+    DPRINT_INFO(WFA_OUT, "profile type %i direction %i Dest ipAddr %s Dest port %i So ipAddr %s So port %i rate %i duration %i pksize %i\n", pf->profile, pf->direction, pf->dipaddr, pf->dport, pf->sipaddr, pf->sport, pf->rate, pf->duration, pf->pksize);
 }
 
 int isString(char *str)
@@ -275,11 +276,13 @@ int wfa_estimate_timer_latency()
     if( tp2.tv_usec >= 1000000)
     {
         tp2.tv_sec = t1.tv_sec +1;
-	tp2.tv_usec -= 1000000;
+        tp2.tv_usec -= 1000000;
     }
     else
         tp2.tv_sec = t1.tv_sec;
-printf("before sec %i, usec %i sleep %i after sec %i usec %i\n",t1.tv_sec,t1.tv_usec,t2.tv_sec,t2.tv_usec);
+
+    DPRINT_INFO(WFA_OUT, "before sec %i, usec %i sleep %i after sec %i usec %i\n",t1.tv_sec,t1.tv_usec,t2.tv_sec,t2.tv_usec);
+
     return latency = (t2.tv_sec - tp2.tv_sec) * 1000000 + (t2.tv_usec - tp2.tv_usec); 
 }
 #ifdef _WINDOWS
@@ -327,56 +330,60 @@ gettimeofday(struct timeval *tv, void *tz)
 
   return 0;
 }
+
 int settimeofday(struct timeval *tv,void *tz)
-     {
+{
        SYSTEMTIME st;
        struct tm *gmtm;
        long x = tv->tv_sec;
        long y = tv->tv_usec;
      
        gmtm = gmtime((const time_t *) &x);
-       st.wSecond		= (WORD) gmtm->tm_sec;
-       st.wMinute		= (WORD) gmtm->tm_min;
-       st.wHour			= (WORD) gmtm->tm_hour;
-       st.wDay			= (WORD) gmtm->tm_mday;
-       st.wMonth			= (WORD) (gmtm->tm_mon  + 1);
-       st.wYear			= (WORD) (gmtm->tm_year + 1900);
-       st.wDayOfWeek		= (WORD) gmtm->tm_wday;
-       st.wMilliseconds	= (WORD) (y / 1000);
-	   if (!SetSystemTime(&st))
-	   {
-			printf("SetSystemTime failed:\n");
-			return -1;
-       }
-     
-       
-       return 0;
+       st.wSecond  = (WORD) gmtm->tm_sec;
+       st.wMinute  = (WORD) gmtm->tm_min;
+       st.wHour   = (WORD) gmtm->tm_hour;
+       st.wDay   = (WORD) gmtm->tm_mday;
+       st.wMonth   = (WORD) (gmtm->tm_mon  + 1);
+       st.wYear   = (WORD) (gmtm->tm_year + 1900);
+       st.wDayOfWeek  = (WORD) gmtm->tm_wday;
+       st.wMilliseconds = (WORD) (y / 1000);
+    if (!SetSystemTime(&st))
+    {
+       DPRINT_INFO(WFA_OUT, "SetSystemTime failed:\n");
+       return -1;
     }
+       
+    return 0;
+}
+
 /* strtok_r version of Windows */
 char * strtok_r(char *string, const char *sepset, char **lasts)
 {
-        char    *q, *r;
+     char    *q, *r;
 
-        /* first or subsequent call */
-        if (string == NULL)
-                string = *lasts;
+     /* first or subsequent call */
+     if (string == NULL)
+         string = *lasts;
 
-        if (string == NULL)             /* return if no tokens remaining */
-                return (NULL);
+     if (string == NULL)             /* return if no tokens remaining */
+         return (NULL);
 
-        q = string + strspn(string, sepset);    /* skip leading separators */
+     q = string + strspn(string, sepset);    /* skip leading separators */
 
-        if (*q == '\0')         /* return if no tokens remaining */
-                return (NULL);
+     if (*q == '\0')         /* return if no tokens remaining */
+         return (NULL);
 
-        if ((r = strpbrk(q, sepset)) == NULL)   /* move past token */
-                *lasts = NULL;  /* indicate this is last token */
-        else {
-                *r = '\0';
-                *lasts = r + 1;
-        }
-        return (q);
+     if ((r = strpbrk(q, sepset)) == NULL)   /* move past token */
+              *lasts = NULL;  /* indicate this is last token */
+     else 
+     {
+         *r = '\0';
+         *lasts = r + 1;
+     }
+
+     return (q);
 }
+
 /* Windows version of strncasecmp */
 int strncasecmp(const char *s1, const char *s2, size_t n)
 {
@@ -391,17 +398,21 @@ int strncasecmp(const char *s1, const char *s2, size_t n)
     }
     if(n == 0)
         return 0;
+
     return toupper((unsigned char)*s1) - toupper((unsigned char)*s2);
 }
+
 /* Windows version of strcasecmp */
 int strcasecmp(const char *s1, const char *s2)
 {
-    while(toupper((unsigned char)*s1) == toupper((unsigned char)*s2)) {
+    while(toupper((unsigned char)*s1) == toupper((unsigned char)*s2)) 
+    {
         if(*s1 == '\0')
             return 0;
         s1++;
         s2++;
     }
+
     return toupper((unsigned char)*s1) - toupper((unsigned char)*s2);
 }
 

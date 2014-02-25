@@ -7,7 +7,7 @@ extern int main(int , char **);
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	return (main(argc,(char **)argv));
-	return 0;
+    return (main(argc,(char **)argv));
+    return 0;
 }
 

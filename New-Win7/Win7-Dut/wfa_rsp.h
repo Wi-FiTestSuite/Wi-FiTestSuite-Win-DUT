@@ -58,9 +58,9 @@
 #define WFA_RSP_H
 
 #ifdef WFA_WMM_VOICE
-#define WFA_INFO_BUFSIZE       128   /* used to upload test data */
+#define WFA_OUT_BUFSIZE       128   /* used to upload test data */
 #else
-#define WFA_INFO_BUFSIZE       128 
+#define WFA_OUT_BUFSIZE       128 
 #endif
 
 typedef struct _tg_ping_stop_resp
@@ -145,7 +145,7 @@ typedef struct dut_cmd_response
        caDeviceListIFResp_t ifList;
        caStaUploadResp_t  uld;
        char version[WFA_VERSION_LEN];
-       char info[WFA_INFO_BUFSIZE];
+       char info[WFA_OUT_BUFSIZE];
        char bssid[WFA_MAC_ADDR_STR_LEN];
        char mac[WFA_MAC_ADDR_STR_LEN];       
 #ifdef WFA_P2P

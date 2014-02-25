@@ -71,7 +71,10 @@
 
 /* maximum number of streams to support */
 //#define WFA_MAX_WMM_STREAMS            4 
+
+/* IP Address String length */
 #define IPV4_ADDRESS_STRING_LEN    16
+#define IPV6_ADDRESS_STRING_LEN    64
 
 #define  MAX_PROFILE_NUM        6
 #define  MINISECONDS            1000
@@ -97,6 +100,9 @@
 #define KW_STARTDELAY              14
 #define KW_NUMFRAME                15
 #define KW_USESYNCCLOCK            16
+#define KW_USERPRIORITY            17
+#define KW_MAXCNT                  18
+#define KW_HTI                     19
 
 /* Profile Types */
 #define PROF_FILE_TX               1
@@ -131,13 +137,14 @@
 #define TG_WMM_AC_VO          4      /* Voice       */
 #define TG_WMM_AC_UAPSD       5      /* UAPSD        */
 
-/* For wireless station, 802.11 defines 8 priority queues and 2 for each
- *  four catergories
- */
-#define TG_WMM_AC_BE2       0x0a
-#define TG_WMM_AC_BK2       0x0b
-#define TG_WMM_AC_VI2       0x0c
-#define TG_WMM_AC_VO2       0x0d
+#define TG_WMM_AC_UP0         12     /* User Priority 0 */
+#define TG_WMM_AC_UP1         13     /*               1 */
+#define TG_WMM_AC_UP2         14     /*               2 */
+#define TG_WMM_AC_UP3         15     /*               3 */
+#define TG_WMM_AC_UP4         16     /*               4 */
+#define TG_WMM_AC_UP5         17     /*               5 */
+#define TG_WMM_AC_UP6         18     /*               6 */
+#define TG_WMM_AC_UP7         19     /*               7 */
 
 /* wmm defs */
 #define TOS_VO7     0xE0         // 111 0  0000 (7)  AC_VO tos/dscp values
@@ -179,6 +186,8 @@ typedef struct _tg_profile
     int  pksize;
     short trafficClass;      /* VO, VI, BK, BE */
     int  startdelay;
+    int maxcnt;
+    int hti;                 /* High Throughput Injection */
 } tgProfile_t;
 
 typedef struct _tg_stats
@@ -203,16 +212,16 @@ typedef struct _e2e_stats
 
 typedef struct _tg_stream
 {
-    int id;
-    int sockfd;
-    int tblidx;
-    int lastPktSN;        /* use for Jitter calculation */
-    int fmInterval;       
-    int rxTimeLast;       /* use for pkLost             */
-    int state;            /* indicate if the stream being active */
-    tgProfile_t profile;
-    tgStats_t stats;
-	tgE2EStats_t *e2ebuf;
+   int id;
+   int sockfd;
+   int tblidx;
+   int lastPktSN;        /* use for Jitter calculation */
+   int fmInterval;       
+   int rxTimeLast;       /* use for pkLost             */
+   int state;            /* indicate if the stream being active */
+   tgProfile_t profile;
+   tgStats_t stats;
+   tgE2EStats_t *e2ebuf;
 } tgStream_t;
 
 typedef struct _traffic_header
@@ -240,10 +249,10 @@ typedef struct _tg_wmm
     pthread_mutex_t thr_flag_mutex;
     pthread_mutex_t thr_stop_mutex;
 #else
-	//LPCTSTR lpszMutex;
+ //LPCTSTR lpszMutex;
     HANDLE thr;
     DWORD thr_id;
-	int timerid;
+    int timerid;
     HANDLE thr_flag_mutex;
     HANDLE thr_stop_mutex;
 #endif
@@ -252,24 +261,24 @@ typedef int (*StationStateFunctionPtr)( char, int,int *); //PS,sleep period,stat
 
 typedef struct station_state_table
 {
-StationStateFunctionPtr statefunc;
-char                    pw_offon;
-int                     sleep_period;
+   StationStateFunctionPtr statefunc;
+   char                    pw_offon;
+   int                     sleep_period;
 } StationProcStatetbl_t;
 
 typedef int (*stationRecvStateFunctionPtr)(unsigned int *, int,int * ); //Recieved message buffer, length,state
 
 typedef struct console_rcv_state_table
 {
-stationRecvStateFunctionPtr statefunc;
+   stationRecvStateFunctionPtr statefunc;
 } StationRecvProcStatetbl_t;
 
 #ifdef _WINDOWS
 typedef struct win7_tos_flow_info
 {
-	PIFC_LIST	pIfcList;
-	PTC_GEN_FILTER *ppFilter;
-	PTC_GEN_FLOW	*pFlow;
+   PIFC_LIST pIfcList;
+   PTC_GEN_FILTER *ppFilter;
+   PTC_GEN_FLOW *pFlow;
 } win7_tos_flow_info_t;
 
 #endif
@@ -277,10 +286,10 @@ typedef struct win7_tos_flow_info
 typedef struct _tg_thr_data
 {
    int tid;
-    StationProcStatetbl_t  *state;
-    int state_num;
+   StationProcStatetbl_t  *state;
+   int state_num;
 #ifdef _WINDOWS
-	win7_tos_flow_info_t tos_flow_info;
+   win7_tos_flow_info_t tos_flow_info;
 #endif
 } tgThrData_t;
 

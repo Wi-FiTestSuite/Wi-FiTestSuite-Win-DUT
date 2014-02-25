@@ -96,6 +96,9 @@
 #define KW_STARTDELAY              14
 #define KW_NUMFRAME                15
 #define KW_USESYNCCLOCK            16
+#define KW_USERPRIORITY            17
+#define KW_MAXCNT                  18
+#define KW_HTI                     19
 
 /* Profile Types */
 #define PROF_FILE_TX               1
@@ -137,6 +140,15 @@
 #define TG_WMM_AC_BK2       0x0b
 #define TG_WMM_AC_VI2       0x0c
 #define TG_WMM_AC_VO2       0x0d
+// VHT merge
+#define TG_WMM_AC_UP0         12     /* User Priority 0 */
+#define TG_WMM_AC_UP1         13     /*               1 */
+#define TG_WMM_AC_UP2         14     /*               2 */
+#define TG_WMM_AC_UP3         15     /*               3 */
+#define TG_WMM_AC_UP4         16     /*               4 */
+#define TG_WMM_AC_UP5         17     /*               5 */
+#define TG_WMM_AC_UP6         18     /*               6 */
+#define TG_WMM_AC_UP7         19     /*               7 */
 
 /* wmm defs */
 #define TOS_VO7     0xE0         // 111 0  0000 (7)  AC_VO tos/dscp values
@@ -163,6 +175,8 @@
 
 #define WFA_UPLOAD_VHSO_RPT        1
 
+#define WFA_MCAST_FRATE            50
+
 typedef struct _tg_profile
 {
     int  profile;                           /* profile id                    */
@@ -176,6 +190,8 @@ typedef struct _tg_profile
     int  pksize;
     short trafficClass;      /* VO, VI, BK, BE */
     int  startdelay;
+    int maxcnt;
+    int hti;                 /* High Throughput Injection */
 } tgProfile_t;
 
 typedef struct _tg_stats
@@ -189,17 +205,27 @@ typedef struct _tg_stats
     unsigned long jitter;         /* voice over wi-fi */
 } tgStats_t;
 
+typedef struct _e2e_stats
+{
+   int seqnum;
+   int lsec;
+   int lusec;
+   int rsec;
+   int rusec;
+} tgE2EStats_t;
+
 typedef struct _tg_stream
 {
-    int id;
-    int sockfd;
-    int tblidx;
-    int lastPktSN;        /* use for Jitter calculation */
-    int fmInterval;       
-    int rxTimeLast;       /* use for pkLost             */
-    int state;            /* indicate if the stream being active */
-    tgProfile_t profile;
-    tgStats_t stats;
+   int id;
+   int sockfd;
+   int tblidx;
+   int lastPktSN;        /* use for Jitter calculation */
+   int fmInterval;       
+   int rxTimeLast;       /* use for pkLost             */
+   int state;            /* indicate if the stream being active */
+   tgProfile_t profile;
+   tgStats_t stats;
+   tgE2EStats_t *e2ebuf;
 } tgStream_t;
 
 typedef struct _traffic_header
@@ -251,21 +277,15 @@ typedef struct console_rcv_state_table
 stationRecvStateFunctionPtr statefunc;
 } StationRecvProcStatetbl_t;
 
+
+
 typedef struct _tg_thr_data
 {
    int tid;
-    StationProcStatetbl_t  *state;
-    int state_num;
-} tgThrData_t;
+   StationProcStatetbl_t  *state;
+   int state_num;
 
-typedef struct _e2e_stats
-{
-   int seqnum;
-   int lsec;
-   int lusec;
-   int rsec;
-   int rusec;
-} tgE2EStats_t;
+} tgThrData_t;
 
 extern int wfaTGConfig(int len, BYTE *buf, int *respLen, BYTE *respBuf);
 extern int wfaSendLongFile(int fromSockfd, int streamId, BYTE *respBuf, int *respLen);

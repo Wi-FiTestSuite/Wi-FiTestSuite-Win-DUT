@@ -119,23 +119,12 @@ extern int wfaTGSetPrio(int sockfd, int tgClass);
 #endif
 #endif
 
-#if 0 /* take this out */
-#include <iwlib.h>
-#include <wireless.h>
-/*
- * atheros wireless interface madwifi driver include files
- * You may remove them if using other device interface
- */
-#include "xtn/compat.h"
-#include "xtn/_ieee80211.h"
-#include "xtn/ieee80211_crypto.h"
-#include "xtn/ieee80211.h"
-#include "xtn/ieee80211_ioctl.h"
-#include "xtn/if_athioctl.h"
-#endif
 #define FW(x,y) FindWindowEx(x, NULL, y, L"")
 
 #define CERTIFICATES_PATH    "/etc/wpa_supplicant"
+
+char *sigmaPath = "C:\\WFA";
+char *sigmaTempPath = "C:\\WFA\\Temp";
 
 /* Some device may only support UDP ECHO, activate this line */
 //#define WFA_PING_UDP_ECHO_ONLY 1
@@ -171,7 +160,7 @@ FILE *e2efp = NULL;
 
 char *capstr[] = {"Disable", "Enable"};
 
-char WFA_CLI_CMD_DIR[64] = "C:\\Sigma\\Intel\\CLIs\\";
+char WFA_CLI_CMD_DIR[64] = "C:\\WFA\\CLIs\\Intel";
 
 int wfaExecuteCLI(char *CLI);
 int CiscoEAPConfigGenerateLowerPart(FILE *file,char *encrType,char *secuType);
@@ -198,10 +187,11 @@ int agtCmdProcGetVersion(int len, BYTE *parms, int *respLen, BYTE *respBuf)
     strncpy(getverResp->cmdru.version, WFA_SYSTEM_VER, WFA_VERSION_LEN-1);
 
     wfaEncodeTLV(WFA_GET_VERSION_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)getverResp, respBuf);
-
     *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
-    return TRUE;
+    DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+    return WFA_SUCCESS;
 }
 
 /*
@@ -215,172 +205,15 @@ int wfaStaAssociate(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    char *ifname = assoc->intf;
    char *ssid = assoc->cmdsu.ssid;
    dutCmdResponse_t *staAssocResp = &gGenericResp;
-   FILE *tmpfd;
-   char string[64];
 
-   DPRINT_INFO(WFA_OUT, "entering wfaStaAssociate ...\n");
-#if defined(_CYGWIN) || defined(_WINDOWS) 
+   DPRINT_INFOL(WFA_OUT, "Entering  ...\n");
 
    if (geSupplicant == eWindowsZeroConfig)
-   {
-//	   sprintf(gCmdStr, "wifi_config -limit %s -enable", gnetIf);
-	   //system(gCmdStr);
-	   //sprintf(gCmdStr, "wifi_config -limit %s -connect %s", gnetIf,ssid);
-	   
+   {   
 	   sprintf(gCmdStr, "netsh wlan connect name=%s ssid=%s", ssid,ssid);
-	   //printf("Executing %s\n",gCmdStr);
+       DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
 	   system(gCmdStr);
-   }
-   if (geSupplicant == eWpaSupplicant)
-   {
-	   sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	   system(gCmdStr);
-	   printf("Executing %s\n",gCmdStr);
-
-	   sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-	   system(gCmdStr);
-	   printf("Executing %s\n",gCmdStr);
-
-	   // for re-association
-	   //sprintf(gCmdStr, "wpa_cli -i\\Device\\NPF_%s reassociate", gnetIf);
-	   //printf("Executing %s\n",gCmdStr);
-	   //system(gCmdStr);
-   }
- if (geSupplicant == eCiscoSecureClient)
-   {
-	   sprintf(gCmdStr, "sc stop \"Cisco Secure Services Client\"");
-	   system(gCmdStr);
-	   printf("Executing %s\n",gCmdStr);
-
-	   Sleep(5000);
-	   sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\"");
-	   system(gCmdStr);
-	   printf("Executing %s\n",gCmdStr);
-
-	   // for re-association
-	   //sprintf(gCmdStr, "wpa_cli -i\\Device\\NPF_%s reassociate", gnetIf);
-	   //printf("Executing %s\n",gCmdStr);
-	   //system(gCmdStr);
-   }
- 
-   if (geSupplicant == eMarvell)
-   {
-	// Store the SSID value for checking the associated ssid
-	   strcpy(gStaSSID,ssid);
-
-	   // restart the supplicant
-
-
-   		sprintf(gCmdStr, "Taskkill /T /F /IM Mrv8000x.exe");
-		system(gCmdStr);
-		printf("Executing %s\n",gCmdStr);
-		Sleep(1000);
-
-		sprintf(gCmdStr, " start \"Marvell\" /D \"c:\\Program\ Files\\Marvell\ CB82\" Mrv8000x.exe");
-		system(gCmdStr);
-		printf("Executing %s\n",gCmdStr);
-		Sleep(3000);
-
-		// call MarvellConnect.exe with ssid
-
-	   sprintf(gCmdStr, "MarvellConnect.exe m");
-	   system(gCmdStr);
-	   printf("Executing %s\n",gCmdStr);
-	   Sleep(2000);
-
-
-	   // check with auto it that the associated ssid is same
-	   // if samesend the response ok
-	   sprintf(gCmdStr, "WfaMarvell.exe c:\\windows\\temp\\Marvell.txt");
-	   system(gCmdStr);
-	   printf("Executing %s\n",gCmdStr);
-	   Sleep(2000);
-	   tmpfd = fopen("c:\\windows\\temp\\Marvell.txt", "r+");
-	   if(tmpfd == NULL)
-	   {
-		  staAssocResp->status = STATUS_ERROR;
-		  wfaEncodeTLV(WFA_STA_ASSOCIATE_RESP_TLV, 4, (BYTE *)staAssocResp, respBuf);   
-		  *respLen = WFA_TLV_HDR_LEN + 4;	   
-
-		  DPRINT_ERR(WFA_ERR, "file open failed\n");
-		  return FALSE;
-	   }
-
-	// file exist, verify the connected status
-		for(;;)
-		{
-			if(fscanf(tmpfd, "%s", string) == EOF)
-			{
-				staAssocResp->status = STATUS_ERROR; 
-				wfaEncodeTLV(WFA_STA_ASSOCIATE_RESP_TLV, 4, (BYTE *)staAssocResp, respBuf);   
-				*respLen = WFA_TLV_HDR_LEN + 4;	   
-
-				DPRINT_ERR(WFA_ERR, "file open failed\n");
-				return FALSE;
-			}
-			printf("\nIn Association - string : %s",string);
-
-			if(strncmp(string, "STATUS", 6) == 0)
-			{
-				char *str;
-				printf("\nIn Association STATUS string : %s",string);
-
-				str = strtok(string, "=");
-				str = strtok(NULL, "=");
-				printf("\nIn Association - str : %s",str);
-				if(str != NULL)
-				{
-					// string compare for Connected
-					// if okay, return complete.
-					if(strncmp(str, "Connected", 9) == 0)
-						break;
-					else
-					{
-						staAssocResp->status = STATUS_ERROR; 
-						wfaEncodeTLV(WFA_STA_ASSOCIATE_RESP_TLV, 4, (BYTE *)staAssocResp, respBuf);   
-						*respLen = WFA_TLV_HDR_LEN + 4;	   
-
-						DPRINT_ERR(WFA_ERR, "Assocition satus %s\n",str);
-						return FALSE;
-					}
-				}
-				else
-				{
-					staAssocResp->status = STATUS_ERROR; 
-					wfaEncodeTLV(WFA_STA_ASSOCIATE_RESP_TLV, 4, (BYTE *)staAssocResp, respBuf);   
-					*respLen = WFA_TLV_HDR_LEN + 4;	   
-
-					DPRINT_ERR(WFA_ERR, "Assocition failed\n");
-					return FALSE;
-				}
-			}
-		}
-	}
-	
-
-	// if the default profile then, try to change the profile through auto it
-	// else 
-		// send error
-	//
-   
-
-#else 
-   /* use 'ifconfig' command to bring down the interface (linux specific) */
-   sprintf(gCmdStr, "ifconfig %s down", ifname);
-   system(gCmdStr);
-
-   /* use 'ifconfig' command to bring up the interface (linux specific) */
-   sprintf(gCmdStr, "ifconfig %s up", ifname);
-
-   /* 
-    *  use 'wpa_cli' command to force a 802.11 re/associate 
-    *  (wpa_supplicant specific) 
-    */
-   system(gCmdStr);
-   sprintf(gCmdStr, "wpa_cli -i%s reassociate", ifname);
-   system(gCmdStr);
-#endif
-
+   }  
    /*
     * Then report back to control PC for completion.
     * This does not have failed/error status. The result only tells
@@ -390,7 +223,8 @@ int wfaStaAssociate(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    wfaEncodeTLV(WFA_STA_ASSOCIATE_RESP_TLV, 4, (BYTE *)staAssocResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + 4;
 
-   return TRUE; 
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+   return WFA_SUCCESS;
 }
 
 /*
@@ -402,96 +236,66 @@ int wfaStaIsConnected(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
    dutCommand_t *connStat = (dutCommand_t *)caCmdBuf;
    FILE *tmpfile = NULL;
-   char result[32],filename[256];
+   char result[32],filename[256], intfile[256];
    dutCmdResponse_t *staConnectResp = &gGenericResp;
    char *ifname = connStat->intf;
    char string[64],Interfacename[64];
-   int i;
 
-   DPRINT_INFO(WFA_OUT, "Entering isConnected ...\n"); 
-#if defined(_CYGWIN) || defined(_WINDOWS)
-#ifdef _CYGWIN
-   sprintf(gCmdStr, "wifi_config -limit %s -query status> /tmp/.isConnected", ifname);
-   strcpy(filename,"/tmp/.isConnected");
-#else
-   sprintf(gCmdStr, "del c:\\windows\\temp\\iscon.txt");
+   DPRINT_INFO(WFA_OUT, "Entering ...\n"); 
+
+   sprintf(gCmdStr, "del /F /Q %s\\Temp\\iscon.txt", sigmaPath);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+
    system(gCmdStr);
    if(geSupplicant == eWindowsZeroConfig)
    {
-	   //sprintf(gCmdStr, "wifi_config -limit %s -query status> c:\\windows\\temp\\iscon.txt", gnetIf);
-	   strcpy(filename,"c:\\windows\\temp\\iscon.txt");
+      sprintf(filename, "%s\\Temp\\iscon.txt", sigmaPath);
+      sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+      tmpfile = fopen(intfile, "r");
+	  if(tmpfile == NULL)
+      {
+          DPRINT_ERR(WFA_ERR, "\n Error opening the interface file \n");
+          staConnectResp->status = STATUS_ERROR;
+          wfaEncodeTLV(WFA_STA_IS_CONNECTED_RESP_TLV, 4, (BYTE *)staConnectResp, respBuf);
+          *respLen = WFA_TLV_HDR_LEN + 4;
 
-		tmpfile = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-		if(tmpfile == NULL)
-		{
-			printf("\n Error opening the interface file \n");
-		}
-		else
-		{
-			for(;;)
-			{
-				if(fgets(string, 256, tmpfile) == NULL)
-					break; 
-			}
-			fclose(tmpfile);
+          return WFA_FAILURE;
+      }
+	  else
+      {
+          for(;;)
+		  {
+		      if(fgets(string, 256, tmpfile) == NULL)
+		         break; 
+		  }
+		  fclose(tmpfile);
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
+		  if(strncmp(string, "IFNAME", 6) == 0)
+		  {
+		      char *str;
+		      str = strtok(string, "\"");
+		      str = strtok(NULL, "\"");
+		      if(str != NULL)
+		      {
+		          strcpy(&Interfacename[0],str);
+		      }
+	      }
+	  }
+	  sprintf(gCmdStr, "del /F /Q %s\\Temp\\temp.txt",sigmaPath);
+      DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+      system(gCmdStr);
 
-			  }
-		}
-		sprintf(gCmdStr, "del /F c:\\WFA\\temp.txt",string);
-       	//printf("Executing %s\n",gCmdStr);
+	  sprintf(gCmdStr, "netsh wlan show  interface name=\"%s\" > %s\\Temp\\temp.txt",&Interfacename[0], sigmaPath);
+      DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+	  system(gCmdStr);
 
-		sprintf(gCmdStr, "netsh wlan show  interface name=\"%s\" > c:\\WFA\\temp.txt",&Interfacename[0]);
-       	//printf("Executing %s\n",gCmdStr);
-	   	system(gCmdStr);
-
-		sprintf(gCmdStr, "FOR /F \"tokens=2 delims=: \" %s IN ('findstr State c:\\WFA\\temp.txt') DO @echo %s > c:\\windows\\temp\\iscon.txt","%i","%i");
-       	//printf("Executing %s\n",gCmdStr);
-		system(gCmdStr);
-
+	  sprintf(gCmdStr, "FOR /F \"tokens=2 delims=: \" %s IN ('findstr State %s\\Temp\\temp.txt') DO @echo %s > %s\\Temp\\iscon.txt","%i",sigmaPath, "%i", sigmaPath);
+      DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);      
+	  system(gCmdStr);
    }
-   else if(geSupplicant == eWpaSupplicant)
-   {
-	   //sprintf(gCmdStr, "wpa_cli -i\\Device\\NPF_%s status > c:\\windows\\temp\\iscon.txt", gnetIf);
-	   sprintf(gCmdStr, "wpa_cli status > c:\\windows\\temp\\iscon.txt", gnetIf);
-	   strcpy(filename,"c:\\windows\\temp\\iscon.txt");
-   }
-   else if(geSupplicant == eCiscoSecureClient)
-   {
-	   sprintf(gCmdStr, "FOR /F \"tokens=19 delims== \" %s IN ('find \"received adapterState\" \"c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\logs\\CurrentLog.txt\"') DO @echo %s > c:\\windows\\temp\\iscon.txt","%i","%i");
-//				FOR /F "tokens=19 delims== " %i IN ('find "received adapterState" "c:\Documents and Settings\All Users\Application Data\Cisco\Cisco Secure Services Client\logs\CurrentLog.txt"') DO @echo %i %j
-
-//	   sprintf(gCmdStr, "wpa_cli -i\\Device\\NPF_%s status > c:\\windows\\temp\\iscon.txt", gnetIf);
-	   strcpy(filename,"c:\\windows\\temp\\iscon.txt");
-   }
-   else if(geSupplicant == eMarvell)
-   {
-	   sprintf(gCmdStr, "WfaMarvell.exe c:\\windows\\temp\\iscon.txt");
-	   strcpy(filename,"c:\\windows\\temp\\iscon.txt");
-   }
-#endif
-   printf("Executing %s\n",gCmdStr);
+   
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n",gCmdStr);
    system(gCmdStr);
-
-#else 
-   /*
-    * use 'wpa_cli' command to check the interface status
-    * none, scanning or complete (wpa_supplicant specific)
-    */ 
-   sprintf(gCmdStr, "wpa_cli -i%s status | grep ^wpa_state= | cut -f2- -d= > /tmp/.isConnected", ifname);
-   system(gCmdStr);
-   strcpy(filename,"/tmp/.isConnected");
-    
-#endif
    /*
     * the status is saved in a file.  Open the file and check it.
     */
@@ -504,120 +308,32 @@ int wfaStaIsConnected(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
       *respLen = WFA_TLV_HDR_LEN + 4;
 
       DPRINT_ERR(WFA_ERR, "file open failed\n");
-      return FALSE;
-   }
 
+      return WFA_FAILURE;
+   }
 
    if(geSupplicant == eWindowsZeroConfig)
    {
-	   fscanf(tmpfile, "%s", result); 
-	   if(strncmp(result, "connected", 9) == 0)
-		   staConnectResp->cmdru.connected = 1;
-	   else
-		   staConnectResp->cmdru.connected = 0;
-//		   staConnectResp->cmdru.connected = 1;
+	      fscanf(tmpfile, "%s", result); 
+	      if(strncmp(result, "connected", 9) == 0)
+		        staConnectResp->cmdru.connected = 1;
+	      else
+		        staConnectResp->cmdru.connected = 0;
    } 
-   else if (geSupplicant == eWpaSupplicant)
-   {
-	     for(;;)
-		   {
-			  if(fscanf(tmpfile, "%s", string) == EOF)
-			  {
-				 staConnectResp->cmdru.connected = 0;
-				 break; 
-			  }
-
-			  if(strncmp(string, "wpa_state", 9) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "=");
-				 str = strtok(NULL, "=");
-				 if(str != NULL)
-				 {
-					 printf("\nThe Is connected status = %s cmp rslt= %d.\n",str,strncmp(str, "COMPLETE", 8));
-					 if(strncmp(str, "COMPLETE", 8) == 0)
-						 staConnectResp->cmdru.connected = 1;
-					 else
-						 staConnectResp->cmdru.connected = 0;
-					break;
-				 }
-
-			  }
-		 }
-			
-   }
-
-   else if (geSupplicant == eCiscoSecureClient)
-   {
-	     for(;;)
-		   {
-			  if(fscanf(tmpfile, "%s", string) == EOF)
-			  {
-				 staConnectResp->cmdru.connected = 0;
-				 break; 
-			  }
-
-			  if(strncmp(string, "connected", 9) == 0)
-			  {
-				  staConnectResp->cmdru.connected = 1;
-				  break;
-			  }
-			  else
-				  staConnectResp->cmdru.connected = 0;
-		  }
-   }
-   else if (geSupplicant == eMarvell)
-   {
-		char temp_ssid[64];
-		BYTE status = 0;
-		char *str;
-		for(;;)
-		{
-			if(fscanf(tmpfile, "%s", string) == EOF)
-			{
-				break; 
-			}
-
-			printf("\nThe string read %s",string);
-			if(strncmp(string, "SSID", 4) == 0)
-			{
-				printf("\nThe string SSID %s",string);
-				str = strtok(string, "=");
-				str = strtok(NULL, "=");
-				strcpy(temp_ssid,str);
-				printf("\nThe temp_ssid %s",temp_ssid);
-			}
-			else if(strncmp(string, "STATUS", 6) == 0)
-			{
-				printf("\nThe string SSID %s",string);
-				str = strtok(string, "=");
-				str = strtok(NULL, "=");
-				printf("\nThe status  %s",str);
-				if(strncmp(str, "Connected", 9) == 0)
-					status = 1;
-			}
-		}
-
-		printf("\nThe temp_ssid  %s",temp_ssid);
-		printf("\nThe gStaSSID  %s",gStaSSID);
-
-		if( (status == 1) && (strcmp(temp_ssid,gStaSSID) == 0) )
-			staConnectResp->cmdru.connected = 1;
-		else
-			staConnectResp->cmdru.connected = 0;
-   }
-
 
    /*
     * Report back the status: Complete or Failed.
     */
-   staConnectResp->status = STATUS_COMPLETE;
-   
+   staConnectResp->status = STATUS_COMPLETE;   
    wfaEncodeTLV(WFA_STA_IS_CONNECTED_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)staConnectResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
+
    if(tmpfile)
-   	fclose(tmpfile);
-   return TRUE;
+   	  fclose(tmpfile);
+
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 /*
@@ -637,271 +353,134 @@ int wfaStaGetIpConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
     int i = 0;
     dutCmdResponse_t *ipconfigResp = &gGenericResp; 
     caStaGetIpConfigResp_t *ifinfo = &ipconfigResp->cmdru.getIfconfig;
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-    int slen, ret;
-    char *str;
-#endif
 
     dutCommand_t *getIpConf = (dutCommand_t *)caCmdBuf;
     char *ifname = getIpConf->intf;
     FILE *tmpfd;
-    char string[256],Interfacename[64];
+    char string[256],Interfacename[64], intfile[256], confile[256];
     char *str;
+
+    DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
     strcpy(ifinfo->dns[0], "0");
     strcpy(ifinfo->dns[1], "0");
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-    /*
-     * check a script file (the current implementation specific)
-     */
-    ret = access("/usr/local/sbin/getipconfig.sh", F_OK);
-    if(ret == -1)
+
+    sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+    tmpfd = fopen(intfile, "r");
+    if(tmpfd == NULL)
     {
        ipconfigResp->status = STATUS_ERROR;
-       wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_RESP_TLV, 4, (BYTE *)ipconfigResp, respBuf);   
+       wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_RESP_TLV, 4, (BYTE *)ipconfigResp, respBuf);
        *respLen = WFA_TLV_HDR_LEN + 4;
 
-       DPRINT_ERR(WFA_ERR, "file not exist\n");
-       return FALSE; 
-
-    }
-
-    
-    /*
-     * Run the script file "getipconfig.sh" to check the ip status 
-     * (current implementation  specific). 
-     * note: "getipconfig.sh" is only defined for the current implementation
-     */
-    sprintf(gCmdStr, "getipconfig.sh /tmp/ipconfig.txt %s\n", ifname); 
-
-    system(gCmdStr);
-
-    /* open the output result and scan/retrieve the info */
-    tmpfd = fopen("/tmp/ipconfig.txt", "r+");
-
-    if(tmpfd == NULL)
-    {
-      ipconfigResp->status = STATUS_ERROR;
-      wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_RESP_TLV, 4, (BYTE *)ipconfigResp, respBuf);
-      *respLen = WFA_TLV_HDR_LEN + 4;
-
-      DPRINT_ERR(WFA_ERR, "file open failed\n");
-      return FALSE;
-    }
-
-    for(;;)
-    {
-        if(fgets(string, 256, tmpfd) == NULL)
-           break; 
-
-        /* check dhcp enabled */
-        if(strncmp(string, "dhcpcli", 7) ==0)
-        {
-            str = strtok(string, "=");
-            str = strtok(NULL, "=");
-            if(str != NULL)
-               ifinfo->isDhcp = 1;
-            else
-               ifinfo->isDhcp = 0;
-        }
-
-        /* find out the ip address */
-        if(strncmp(string, "ipaddr", 6) == 0)
-        {
-            str = strtok(string, "=");
-            str = strtok(NULL, " ");
-            if(str != NULL)
-            {
-               strncpy(ifinfo->ipaddr, str, 15);
-               ifinfo->ipaddr[15]='\0';
-            }
-            else
-               strncpy(ifinfo->ipaddr, "none", 15);
-        }
-
-        /* check the mask */
-        if(strncmp(string, "mask", 4) == 0)
-        {
-            char ttstr[16];
-            char *ttp = ttstr;
-
-            str = strtok_r(string, "=", &ttp);
-            if(*ttp != '\0')
-            {
-               strcpy(ifinfo->mask, ttp);
-               slen = strlen(ifinfo->mask);
-               ifinfo->mask[slen-1] = '\0';
-            }
-            else
-               strcpy(ifinfo->mask, "none");
-        }
-
-        /* find out the dns server ip address */
-        if(strncmp(string, "nameserv", 8) == 0)
-        {
-            char ttstr[16];
-            char *ttp = ttstr;
-            
-            str = strtok_r(string, " ", &ttp);
-            if(str != NULL && i < 2)
-            {
-               strcpy(ifinfo->dns[i], ttp);
-               slen = strlen(ifinfo->dns[i]);
-               ifinfo->dns[i][slen-1] = '\0';
-            }
-            else
-               strcpy(ifinfo->dns[i], "none");
-
-            i++;
-        }
-     }
-#else
-#ifdef _WINDOWS
-//     sprintf(gCmdStr, "wifi_config -limit %s -all > c:\\windows\\temp\\getcon.txt", gnetIf);
-
-     tmpfd = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-    if(tmpfd == NULL)
-    {
-      ipconfigResp->status = STATUS_ERROR;
-      wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_RESP_TLV, 4, (BYTE *)ipconfigResp, respBuf);
-      *respLen = WFA_TLV_HDR_LEN + 4;
-
-      DPRINT_ERR(WFA_ERR, " Interface.txt file open failed\n");
-      return FALSE;
+       DPRINT_ERR(WFA_ERR, "%s open failed\n", intfile);
+       return WFA_FAILURE;
     }
 	else
 	{
-	    for(;;)
-	    {
-	        if(fgets(string, 256, tmpfd) == NULL)
-	           break; 
-		}
-		fclose(tmpfd);
+	   for(;;)
+	   {
+	       if(fgets(string, 256, tmpfd) == NULL)
+	          break; 
+	   }
+	   fclose(tmpfd);
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
+	   if(strncmp(string, "IFNAME", 6) == 0)
+	   {
+	      char *str;
+          str = strtok(string, "\"");
+          str = strtok(NULL, "\"");
+          if(str != NULL)
+          {
+             strcpy(&Interfacename[0],str);
+          }
+       }
+    }
+    sprintf(gCmdStr, "netsh interface ip show addresses name=\"%s\"  > %s\\Temp\\getcon.txt",&Interfacename[0], sigmaPath);
+    DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+    system(gCmdStr);
 
-			  }
+    sprintf(confile, "%s\\Temp\\getcon.txt", sigmaPath);
+    tmpfd = fopen(confile, "r+");
 
-	}
-	 sprintf(gCmdStr, "netsh interface ip show addresses name=\"%s\"  > c:\\windows\\temp\\getcon.txt",&Interfacename[0]);
-
-	 //printf("Executing %s\n",gCmdStr);
-	 system(gCmdStr);
-     tmpfd = fopen("c:\\windows\\temp\\getcon.txt", "r+");
-#else
-    sprintf(gCmdStr, "wifi_config -limit %s -all", ifname);
-    tmpfd = popen(gCmdStr, "r");
-#endif
     if(tmpfd == NULL)
     {
-      ipconfigResp->status = STATUS_ERROR;
-      wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_RESP_TLV, 4, (BYTE *)ipconfigResp, respBuf);
-      *respLen = WFA_TLV_HDR_LEN + 4;
+        ipconfigResp->status = STATUS_ERROR;
+        wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_RESP_TLV, 4, (BYTE *)ipconfigResp, respBuf);
+        *respLen = WFA_TLV_HDR_LEN + 4;
 
-      DPRINT_ERR(WFA_ERR, "file open failed\n");
-      return FALSE;
+        DPRINT_ERR(WFA_ERR, "File open failed\n");
+        return WFA_FAILURE;
     }
-    for(;;)
-    {
-        if(fgets(string, 256, tmpfd) == NULL)
-           break; 
 
-		str = strtok(string, " ");
+   for(;;)
+   {
+      if(fgets(string, 256, tmpfd) == NULL)
+         break; 
 
-        /* check dhcp enabled */
-        if(strncmp(str, "DHCP", 4) ==0)
-        {
-            str = strtok(NULL, " ");
-            str = strtok(NULL, " ");
-			if(strncmp(str, "Yes", 3) ==0)
-				ifinfo->isDhcp = 1;
-            else
-               ifinfo->isDhcp = 0;
-        }
+      str = strtok(string, " ");
 
-        /* find out the ip address */
-        if(strncmp(str, "IP", 2) ==0)
-        {
-            str = strtok(NULL, " ");
-            str = strtok(NULL, " ");
-			memset(ifinfo->ipaddr,'\0',16);
-            if(str != NULL)
-            {
-			   printf("\nThe IP length %dEnd\n",strlen(str));
-			   printf("\nThe IP  %sEnd\n",str);
+      /* check dhcp enabled */
+      if(strncmp(str, "DHCP", 4) ==0)
+      {
+          str = strtok(NULL, " ");
+          str = strtok(NULL, " ");
+          if(strncmp(str, "Yes", 3) ==0)
+              ifinfo->isDhcp = 1;
+          else
+              ifinfo->isDhcp = 0;
+      }
 
-               strncpy(ifinfo->ipaddr, str, 15);
-               ifinfo->ipaddr[strlen(str)-1]='\0';
-            }
-            else
-               strncpy(ifinfo->ipaddr, "none", 15);
-        }
+      /* find out the ip address */
+      if(strncmp(str, "IP", 2) ==0)
+      {
+         str = strtok(NULL, " ");
+         str = strtok(NULL, " ");
+         memset(ifinfo->ipaddr,'\0',16);
+         if(str != NULL)
+         {
+			 DPRINT_INFO(WFA_OUT, "\nThe IP length %dEnd\n",strlen(str));
+			 DPRINT_INFO(WFA_OUT, "\nThe IP  %sEnd\n",str);
 
-        /* check the mask */
-        if(strncmp(str, "Subnet", 6) ==0)
-        {
-            str = strtok(NULL, " ");
-            str = strtok(NULL, " ");
-            if(str != NULL)
-            {
-               strcpy(ifinfo->mask, str);
-            }
-            else
-               strcpy(ifinfo->mask, "none");
-        }
-        /* 
-		//find out the dns server ip address 
-        if(strncmp(string, "nameserv", 8) == 0)
-        {
-            char ttstr[16];
-            char *ttp = ttstr;
-            
-            str = strtok_r(string, " ", &ttp);
-            if(str != NULL && i < 2)
-            {
-               strcpy(ifinfo->dns[i], ttp);
-               slen = strlen(ifinfo->dns[i]);
-               ifinfo->dns[i][slen-1] = '\0';
-            }
-            else
-               strcpy(ifinfo->dns[i], "none");
+             strncpy(ifinfo->ipaddr, str, 15);
+             ifinfo->ipaddr[strlen(str)-1]='\0';
+         }
+         else
+             strncpy(ifinfo->ipaddr, "none", 15);
+      }
 
-            i++;
-        }
-*/
+      /* check the mask */
+      if(strncmp(str, "Subnet", 6) ==0)
+      {
+         str = strtok(NULL, " ");
+         str = strtok(NULL, " ");
+         if(str != NULL)
+         {
+           strcpy(ifinfo->mask, str);
+         }
+         else
+           strcpy(ifinfo->mask, "none");
+      }
+   }
 
-    }
-#ifndef _WINDOWS
-    pclose(tmpfd);
-#else
-	fclose(tmpfd);
-#endif
-#endif
+	  fclose(tmpfd);
 
-     /*
-      * Report back the results
-      */
-     ipconfigResp->status = STATUS_COMPLETE;
-     wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)ipconfigResp, respBuf);   
+   /*
+    * Report back the results
+    */
+   ipconfigResp->status = STATUS_COMPLETE;
+   wfaEncodeTLV(WFA_STA_GET_IP_CONFIG_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)ipconfigResp, respBuf);   
+   *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
-     *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
+   DPRINT_INFOL(WFA_OUT, "%i %i %s %s %s %s %i\n", ipconfigResp->status, 
+      ifinfo->isDhcp, ifinfo->ipaddr, ifinfo->mask, 
+      ifinfo->dns[0], ifinfo->dns[1], *respLen);
 
-#if 1
-     DPRINT_INFO(WFA_OUT, "%i %i %s %s %s %s %i\n", ipconfigResp->status, 
-        ifinfo->isDhcp, ifinfo->ipaddr, ifinfo->mask, 
-            ifinfo->dns[0], ifinfo->dns[1], *respLen);
-#endif
+   fclose(tmpfd);
 
-     fclose(tmpfd);
-     return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 /*
@@ -918,133 +497,68 @@ int wfaStaSetIpConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    caStaSetIpConfig_t *ipconfig = &setIpConf->cmdsu.ipconfig;
    dutCmdResponse_t *staSetIpResp = &gGenericResp;
    
+   char string[256],Interfacename[64], intfile[256];
+   FILE *tmpfd;
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   /*
-    * Use command 'ifconfig' to configure the interface ip address, mask.
-    * (Linux specific).
-    */
-   DPRINT_INFO(WFA_OUT, "entering wfaStaSetIpConfig ...\n");
-   sprintf(gCmdStr, "/sbin/ifconfig %s %s netmask %s > /dev/null 2>&1 ", ipconfig->intf, ipconfig->ipaddr, ipconfig->mask);
-   printf("cmd 1 is %s\n",gCmdStr);
-   system(gCmdStr);
+   DPRINT_INFO(WFA_OUT, "Entering ..\n");
 
-   /* use command 'route add' to set set gatewway (linux specific) */ 
-   if(ipconfig->defGateway[0] != '\0')
+   Sleep(2000);
+   sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+   tmpfd = fopen(intfile, "r");
+   if(tmpfd == NULL)
    {
-      sprintf(gCmdStr, "/sbin/route add default gw %s > /dev/null 2>&1", ipconfig->defGateway);
-      system(gCmdStr);
-   }
-
-   /* set dns (linux specific) */
-   sprintf(gCmdStr, "cp /etc/resolv.conf /tmp/resolv.conf.bk");
-   system(gCmdStr);
-   sprintf(gCmdStr, "echo nameserv %s > /etc/resolv.conf", ipconfig->pri_dns);
-   system(gCmdStr);
-   sprintf(gCmdStr, "echo nameserv %s >> /etc/resolv.conf", ipconfig->sec_dns);
-   system(gCmdStr);
-#else
-	  char ipaddr[256],string[256],Interfacename[64];
-      FILE *tmpfd;
-	  int i;
-     DPRINT_INFO(WFA_OUT, "entering wfaStaSetIpConfig ...\n");
-	 Sleep(2000);
-	/* 
-	sprintf(gCmdStr, "wifi_config -limit %s -getip > c:\\windows\\temp\\getip.txt", gnetIf);
-	 printf("Executing %s\n",gCmdStr);
-	 system(gCmdStr);
-     tmpfd = fopen("c:\\windows\\temp\\getip.txt", "r+");
-     if(tmpfd == NULL)
-     {
+       DPRINT_ERR(WFA_ERR, "\n Error opening the interface file \n");
        staSetIpResp->status = STATUS_ERROR;
-	   wfaEncodeTLV(WFA_STA_SET_IP_CONFIG_RESP_TLV, 4, (BYTE *)staSetIpResp, respBuf);   
+       wfaEncodeTLV(WFA_STA_SET_IP_CONFIG_RESP_TLV, 4, (BYTE *)staSetIpResp, respBuf);   
        *respLen = WFA_TLV_HDR_LEN + 4;
 
-       DPRINT_ERR(WFA_ERR, "file open failed\n");
-       return FALSE;
-     }
-     if(fgets(string, 256, tmpfd) != NULL)
-            sscanf(string,"%s",ipaddr); 
-	 printf("\r\n IP is %s\n",ipaddr);
-	 fclose(tmpfd);
-	 */
-    tmpfd = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-    if(tmpfd == NULL)
-    {
-		printf("\n Error opening the interface file \n");
-    }
-	else
-	{
-	    for(;;)
-	    {
+       return WFA_FAILURE;
+   }
+  	else
+  	{
+	     for(;;)
+	     {
 	        if(fgets(string, 256, tmpfd) == NULL)
 	           break; 
-		}
-		fclose(tmpfd);
+         }
+		 fclose(tmpfd);
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
-
-			  }
-
-	}
+		 if(strncmp(string, "IFNAME", 6) == 0)
+		 {
+		     char *str;
+		     str = strtok(string, "\"");
+		     str = strtok(NULL, "\"");
+		     if(str != NULL)
+		     {
+		         strcpy(&Interfacename[0],str);
+		     }
+		 }
+ 	 }
 	
 	 if(ipconfig->isDhcp == 1)
 	 {
-		   sprintf(gCmdStr, "netsh interface ip set address name=\"%s\" source=dhcp", &Interfacename[0]);
-           //printf("Executing %s\n",gCmdStr);
-           system(gCmdStr);
+	    sprintf(gCmdStr, "netsh interface ip set address name=\"%s\" source=dhcp", &Interfacename[0]);
+        DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+        system(gCmdStr);
 	 }
 	 else
-	 {
-		sprintf(gCmdStr, "netsh interface ip set address name=\"%s\" static %s %s ", &Interfacename[0],ipconfig->ipaddr,ipconfig->mask);
-		//printf("Executing %s\n",gCmdStr);
-		system(gCmdStr);
-		if(ipconfig->pri_dns[0])
-		{
-			printf("inside netsh \n");
-			sprintf(gCmdStr, "netsh interface ip set dns name=\"%s\" static addr=%s", &Interfacename[0],ipconfig->pri_dns);
-			//printf("Executing %s\n",gCmdStr);
-			system(gCmdStr);
-			if(ipconfig->sec_dns)
-			{
-				sprintf(gCmdStr, "netsh interface ip add dns name=\"%s\" addr=%s", &Interfacename[0],ipconfig->sec_dns);
-				//printf("Executing %s\n",gCmdStr);
-				system(gCmdStr);
-			}
-		}
+ 	 {
+	    sprintf(gCmdStr, "netsh interface ip set address name=\"%s\" static %s %s ", &Interfacename[0],ipconfig->ipaddr,ipconfig->mask);
+        DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+	    system(gCmdStr);
+	    if(ipconfig->pri_dns[0])
+	    {
+	       sprintf(gCmdStr, "netsh interface ip set dns name=\"%s\" static addr=%s", &Interfacename[0],ipconfig->pri_dns);
+           DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+	       system(gCmdStr);
+	       if(ipconfig->sec_dns)
+	       {
+		        sprintf(gCmdStr, "netsh interface ip add dns name=\"%s\" addr=%s", &Interfacename[0],ipconfig->sec_dns);
+                DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+	     		system(gCmdStr);
+		   }
+	    }
 	 }
-/*
-	 if(strcmp(ipaddr,ipconfig->ipaddr) != 0)
-	 {
-           //sprintf(gCmdStr, "wifi_config -limit %s -addip -ip %s -mask %s", ipconfig->intf, ipconfig->ipaddr, ipconfig->mask);
-		   //sprintf(gCmdStr, "netsh interface ip set address name=%s static addr=%s mask=%s gateway=%s gwmetric=0", ipconfig->intf,ipconfig->ipaddr,ipconfig->mask,ipconfig->defGateway);
-		   //sprintf(gCmdStr, "netsh interface ip set address %s static %s %s %s 0", ipconfig->intf,ipconfig->ipaddr,ipconfig->mask,ipconfig->defGateway);
-		   sprintf(gCmdStr, "netsh interface ip set address %s static %s %s ", gnetIf,ipconfig->ipaddr,ipconfig->mask);
-
-           printf("Executing %s\n",gCmdStr);
-           system(gCmdStr);
-		  if(ipconfig->pri_dns[0])
-		  {
-			printf("inside netsh \n");
-			sprintf(gCmdStr, "netsh interface ip set dns %s static addr=%s", gnetIf,ipconfig->pri_dns);
-			system(gCmdStr);
-   			if(ipconfig->sec_dns)
-   			{
-   				sprintf(gCmdStr, "netsh interface ip add dns %s addr=%s", gnetIf,ipconfig->sec_dns);
-   				system(gCmdStr);
-			}
-		  }
-	 }
-	 */
-#endif
 
    /*
     * report status
@@ -1053,7 +567,9 @@ int wfaStaSetIpConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    wfaEncodeTLV(WFA_STA_SET_IP_CONFIG_RESP_TLV, 4, (BYTE *)staSetIpResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + 4;
 
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 /*
@@ -1070,7 +586,7 @@ int wfaStaVerifyIpConnection(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBu
    char strout[64], *pcnt;
    FILE *tmpfile;
    
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaVerifyIpConnection ...\n");
+   DPRINT_INFO(WFA_OUT, "Entering ...\n");
 
    /* set timeout value in case not set */
    if(verip->cmdsu.verifyIp.timeout <= 0)
@@ -1080,6 +596,7 @@ int wfaStaVerifyIpConnection(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBu
    
    /* execute the ping command  and pipe the result to a tmp file */
    sprintf(gCmdStr, "ping %s -c 3 -W %u | grep loss | cut -f3 -d, 1>& /tmp/pingout.txt", verip->cmdsu.verifyIp.dipaddr, verip->cmdsu.verifyIp.timeout);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
    system(gCmdStr); 
 
    /* scan/check the output */
@@ -1090,8 +607,8 @@ int wfaStaVerifyIpConnection(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBu
       wfaEncodeTLV(WFA_STA_VERIFY_IP_CONNECTION_RESP_TLV, 4, (BYTE *)verifyIpResp, respBuf);   
       *respLen = WFA_TLV_HDR_LEN + 4;
 
-      DPRINT_ERR(WFA_ERR, "file open failed\n");
-      return FALSE;
+      DPRINT_ERR(WFA_ERR, "File open failed\n");
+      return WFA_FAILURE;
    }
    
    verifyIpResp->status = STATUS_COMPLETE;
@@ -1177,10 +694,11 @@ int wfaStaVerifyIpConnection(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBu
 #endif
 
    wfaEncodeTLV(WFA_STA_VERIFY_IP_CONNECTION_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)verifyIpResp, respBuf);   
-
    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
    
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 /*
@@ -1193,68 +711,58 @@ int wfaStaGetMacAddress(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
     dutCmdResponse_t *getmacResp = &gGenericResp;
     char *str;
     char *ifname = getMac->intf;
-	int i;
     FILE *tmpfd;
-    char string[128],Interfacename[64];
-     char filename[50];
+    char string[128],Interfacename[128], intfile[128];
+    char filename[50];
 
-    DPRINT_INFO(WFA_OUT, "Entering wfaStaGetMacAddress ...\n");
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-    /*
-     * run the script "getipconfig.sh" to find out the mac
-     */
-    //sprintf(gCmdStr, "getipconfig.sh /tmp/ipconfig.txt %s", ifname); 
-    strncpy(filename,"/tmp/ipconfig.txt",20);
-    sprintf(gCmdStr, "ifconfig %s > /tmp/ipconfig.txt ", ifname); 
-#else
-#ifdef _CYGWIN
-    strncpy(filename,"/tmp/ipconfig.txt",20);
-#else
-    strncpy(filename,"c:\\WINDOWS\\TEMP\\ipconfig.txt",40);
-#endif
+    DPRINT_INFO(WFA_OUT, "Entering ...\n");
 
-    //sprintf(gCmdStr, "wifi_config -limit %s -mac > %s ", gnetIf,filename); 
+    sprintf(filename,"%s\\Temp\\ipconfig.txt", sigmaPath);
+    sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+    DPRINT_INFOL(WFA_OUT, "filename %s intfile %s\n", filename, intfile);
 
-		tmpfd = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-		if(tmpfile == NULL)
-		{
-			printf("\n Error opening the interface file \n");
-		}
-		else
-		{
-			for(;;)
-			{
-				if(fgets(string, 256, tmpfd) == NULL)
-					break; 
-			}
-			fclose(tmpfd);
+    tmpfd = fopen(intfile, "r");
+    if(tmpfile == NULL)
+    {
+        DPRINT_ERR(WFA_ERR, "\n Error opening the interface file \n");
+        getmacResp->status = STATUS_ERROR;
+        wfaEncodeTLV(WFA_STA_GET_MAC_ADDRESS_RESP_TLV, 4, (BYTE *)getmacResp, respBuf);   
+        *respLen = WFA_TLV_HDR_LEN + 4;
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
+        return WFA_FAILURE;
+    }
+	else
+    {
+        for(;;)
+        {
+           if(fgets(string, 256, tmpfd) == NULL)
+              break; 
+        }
+        fclose(tmpfd);
 
-			  }
-		}
-		sprintf(gCmdStr, "del /F c:\\WFA\\temp.txt");
-       	//printf("Executing %s\n",gCmdStr);
+        if(strncmp(string, "IFNAME", 6) == 0)
+        {
+           char *str;
+           str = strtok(string, "\"");
+           str = strtok(NULL, "\"");
+           if(str != NULL)
+           {
+               strcpy(&Interfacename[0],str);
+            }
+        }
+    }
+    sprintf(gCmdStr, "del /F /Q %s\\Temp\\temp.txt", sigmaPath);
+    DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
 
-		sprintf(gCmdStr, "netsh wlan show  interface state name=\"%s\" > c:\\WFA\\temp.txt",&Interfacename[0]);
-       	//printf("Executing %s\n",gCmdStr);
-	   	system(gCmdStr);
+    sprintf(gCmdStr, "netsh wlan show  interface state name=\"%s\" > %s\\Temp\\temp.txt",&Interfacename[0], sigmaPath);
+    DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+    system(gCmdStr);
 
-		sprintf(gCmdStr, "FOR /F \"tokens=3,4,5,6,7,8 delims=: \" %s IN ('findstr Physical c:\\WFA\\temp.txt') DO @echo %s:%s:%s:%s:%s:%s > c:\\windows\\temp\\ipconfig.txt","%i","%i","%j","%k","%l","%m","%n");
-       	//printf("Executing %s\n",gCmdStr);
-		system(gCmdStr);
+	sprintf(gCmdStr, "FOR /F \"tokens=3,4,5,6,7,8 delims=: \" %s IN ('findstr Physical %s\\Temp\\temp.txt') DO @echo %s:%s:%s:%s:%s:%s > %s\\Temp\\ipconfig.txt","%i",sigmaPath, "%i","%j","%k","%l","%m","%n", sigmaPath);
+    DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+	system(gCmdStr);
 
-		Sleep(1000);
-
-#endif 
+	Sleep(1000);
 
     tmpfd = fopen(filename, "r+");
     if(tmpfd == NULL)
@@ -1264,48 +772,50 @@ int wfaStaGetMacAddress(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
       *respLen = WFA_TLV_HDR_LEN + 4;
 
       DPRINT_ERR(WFA_ERR, "file open failed\n");
-      return FALSE;
-    }
+      return WFA_FAILURE;
+   }
 
-        if(fgets(string, 256, tmpfd) == NULL)
-        {
-           getmacResp->status = STATUS_ERROR;
-        }
-         str = strtok(string, " ");
+   if(fgets(string, 256, tmpfd) == NULL)
+   {
+      getmacResp->status = STATUS_ERROR;
+   }
+   str = strtok(string, " ");
 
 #ifdef _WINDOWS
-        if(str)
-        {
-			//printf("\nThe MAC address is : %s",str);
-			strcpy(getmacResp->cmdru.mac, str);
-			getmacResp->status = STATUS_COMPLETE;
-		}
-		else
-		{
-			getmacResp->status = STATUS_ERROR;
-		}
+   if(str)
+   {
+      //printf("\nThe MAC address is : %s",str);
+      strcpy(getmacResp->cmdru.mac, str);
+      getmacResp->status = STATUS_COMPLETE;
+   }
+   else
+   {
+      getmacResp->status = STATUS_ERROR;
+   }
 #else
-         while(str && ((strcmp(str,"HWaddr")) != 0))
-        {
-            str = strtok(NULL, " ");
-        }
+   while(str && ((strcmp(str,"HWaddr")) != 0))
+   {
+      str = strtok(NULL, " ");
+   }
          
-        /* get mac */
-        if(str)
-            {
-          str = strtok(NULL, " ");
-          strcpy(getmacResp->cmdru.mac, str);
-               getmacResp->status = STATUS_COMPLETE;
-    }
+   /* get mac */
+   if(str)
+   {
+      str = strtok(NULL, " ");
+      strcpy(getmacResp->cmdru.mac, str);
+      getmacResp->status = STATUS_COMPLETE;
+   }
  
 #endif
  
-    wfaEncodeTLV(WFA_STA_GET_MAC_ADDRESS_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)getmacResp, respBuf);   
+   wfaEncodeTLV(WFA_STA_GET_MAC_ADDRESS_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)getmacResp, respBuf);   
+   *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
-    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
+   fclose(tmpfd);
 
-    fclose(tmpfd);
-    return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 /*
@@ -1317,6 +827,8 @@ int wfaStaGetMacAddress(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 int wfaStaGetStats(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
    dutCmdResponse_t *statsResp = &gGenericResp;
+
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
 #if 0  /* this is never used, you can skip this call */
    int s;
@@ -1399,8 +911,8 @@ int wfaStaGetStats(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    wfaEncodeTLV(WFA_STA_GET_STATS_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)statsResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
-
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+   return WFA_SUCCESS;
 }
 
 /*
@@ -1421,6 +933,8 @@ int wfaStaGetStats(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
  *     6. key3
  *     7. key4
  *     8. activeKey Index
+ *
+ *   Not used for WIN7
  */
 
 int wfaSetEncryption1(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
@@ -1462,7 +976,7 @@ int wfaSetEncryption1(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 #ifdef _CYGWIN
 file = fopen("/tmp/tmp.xml", "w+");
 #else
-file = fopen("c:\\windows\\temp\\tmp.xml", "w+");
+file = fopen("c:\\windows\\Temp\\tmp.xml", "w+");
 #endif
   /* we create a file for reading and writing */
 
@@ -1548,656 +1062,162 @@ int wfaSetEncryptionZeroConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *resp
    dutCmdResponse_t *setEncrypResp = &gGenericResp;
    
    FILE *file,*tmpfd;
-   char string[256],Interfacename[64];
-   int i;
+   char string[256],Interfacename[64], pfile[128], intfile[128];
 
-   printf("Inside wfaSetEncryptionZeroConfig...\n");
-   
-  // sprintf(gCmdStr, "wifi_config -limit %s -enable", gnetIf);
-  // system(gCmdStr);
-
-   sprintf(gCmdStr, "del /F c:\\WFA\\tmp.xml");
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
+ 
+ 
+   sprintf(pfile, "%s\\Temp\\tmp.xml", sigmaPath);
+   sprintf(gCmdStr, "del /F /Q %s", pfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
    system(gCmdStr);
 
-#ifdef _CYGWIN
-file = fopen("/tmp/tmp.xml", "w+");
-#else
-file = fopen("c:\\WFA\\tmp.xml", "w+");
-#endif
-  /* we create a file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-    sprintf(gCmdStr,"<?xml version=\"1.0\"?>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<name>%s</name>\n",setEncryp->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<SSIDConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<SSID>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<name>%s</name>\n",setEncryp->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t</SSID>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t</SSIDConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<connectionType>ESS</connectionType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<connectionMode>auto</connectionMode>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<autoSwitch>true</autoSwitch>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<MSM>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<security>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<authentication>open</authentication>\n");
-    fputs(gCmdStr, file);
-   if(setEncryp->encpType == 1)
-    sprintf(gCmdStr,"\t\t\t<encryption>WEP</encryption>\n");
-   else
-    sprintf(gCmdStr,"\t\t\t<encryption>none</encryption>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t <useOneX>false</useOneX>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
-    fputs(gCmdStr, file);
-   if(setEncryp->encpType == 1)
+   file = fopen(pfile, "w+");
+   if(file==NULL) 
    {
-    sprintf(gCmdStr,"\t\t\t\t<sharedKey>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<keyType>networkKey</keyType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<protected>false</protected>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<keyMaterial>%s</keyMaterial>\n",setEncryp->keys[0]);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t</sharedKey>\n");
-    fputs(gCmdStr, file);
+       DPRINT_ERR(WFA_ERR, "Error: can't create file.\n");
+       setEncrypResp->status = STATUS_ERROR;
+       wfaEncodeTLV(WFA_STA_SET_ENCRYPTION_RESP_TLV, 4, (BYTE *)setEncrypResp, respBuf);
+       *respLen = WFA_TLV_HDR_LEN + 4;
+
+       return WFA_FAILURE;
    }
-    sprintf(gCmdStr,"\t\t</security>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t</MSM>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</WLANProfile>\n");
-    fputs(gCmdStr, file);
-    /*sprintf(gCmdStr,"\t\t\t<sharedKey>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t<keyType>networkKey</keyType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t<protected>false</protected>\n");
-    fputs(gCmdStr, file);*/
-  }
-  fclose(file);
-#ifdef _CYGWIN
-   sprintf(gCmdStr, "wifi_config -limit %s -add %s", setEncryp->intf,"c:\\\\cygwin\\\\tmp\\\\tmp.xml");
-#else
-//sprintf(gCmdStr, "wifi_config -limit %s -add %s", gnetIf,"c:\\\\windows\\\\temp\\\\tmp.xml");
+   else 
+   {
+       sprintf(gCmdStr,"<?xml version=\"1.0\"?>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<name>%s</name>\n",setEncryp->ssid);
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<SSIDConfig>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t<SSID>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t<name>%s</name>\n",setEncryp->ssid);
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t</SSID>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t</SSIDConfig>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<connectionType>ESS</connectionType>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<connectionMode>auto</connectionMode>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<autoSwitch>true</autoSwitch>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<MSM>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t<security>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t<authentication>open</authentication>\n");
+       fputs(gCmdStr, file);
 
-     tmpfd = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-    if(tmpfd == NULL)
-    {
-		printf("\n Error opening the interface file \n");
-    }
-	else
-	{
-	    for(;;)
-	    {
-	        if(fgets(string, 256, tmpfd) == NULL)
-	           break; 
-		}
-		fclose(tmpfd);
+       if(setEncryp->encpType == 1)
+          sprintf(gCmdStr,"\t\t\t<encryption>WEP</encryption>\n");
+       else
+          sprintf(gCmdStr,"\t\t\t<encryption>none</encryption>\n");
+    
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t <useOneX>false</useOneX>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
+       fputs(gCmdStr, file);
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
+       if(setEncryp->encpType == 1)
+       {
+          sprintf(gCmdStr,"\t\t\t\t<sharedKey>\n");
+          fputs(gCmdStr, file);
+          sprintf(gCmdStr,"\t\t\t\t\t<keyType>networkKey</keyType>\n");
+          fputs(gCmdStr, file);
+          sprintf(gCmdStr,"\t\t\t\t\t<protected>false</protected>\n");
+          fputs(gCmdStr, file);
+          sprintf(gCmdStr,"\t\t\t\t\t<keyMaterial>%s</keyMaterial>\n",setEncryp->keys[0]);
+          fputs(gCmdStr, file);
+          sprintf(gCmdStr,"\t\t\t\t</sharedKey>\n");
+          fputs(gCmdStr, file);
+       }
 
-			  }
+       sprintf(gCmdStr,"\t\t</security>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t</MSM>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"</WLANProfile>\n");
+       fputs(gCmdStr, file);
+   }
+   fclose(file);
 
-	}
+   sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+   tmpfd = fopen(intfile, "r");
+   if(tmpfd == NULL)
+   {
+	     	DPRINT_ERR(WFA_ERR, "Error opening the interface file \n");
+       setEncrypResp->status = STATUS_ERROR;
+       wfaEncodeTLV(WFA_STA_SET_ENCRYPTION_RESP_TLV, 4, (BYTE *)setEncrypResp, respBuf);
+       *respLen = WFA_TLV_HDR_LEN + 4;
+ 
+       return WFA_FAILURE;
+   }
+   else
+   {
+      for(;;)
+	  {
+	     if(fgets(string, 256, tmpfd) == NULL)
+	        break; 
+	  }
+	  fclose(tmpfd);
 
-   sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all","c:\\WFA\\tmp.xml",&Interfacename[0]);
+	  if(strncmp(string, "IFNAME", 6) == 0)
+	  {
+	     char *str;
+	     str = strtok(string, "\"");
+	     str = strtok(NULL, "\"");
+	     if(str != NULL)
+	     {
+	         strcpy(&Interfacename[0],str);
+	     }
+	  }
+   }
 
-#endif
-   printf("Executing %s\n",gCmdStr);
+   sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all", pfile,&Interfacename[0]);
+
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
    system(gCmdStr);
 
    setEncrypResp->status = STATUS_COMPLETE;
    wfaEncodeTLV(WFA_STA_SET_ENCRYPTION_RESP_TLV, 4, (BYTE *)setEncrypResp, respBuf);
    *respLen = WFA_TLV_HDR_LEN + 4;
 
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+   return WFA_SUCCESS;
 }
 
 
-int wfaSetEncryptionCiscoSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEncryption_t *setEncryp = (caStaSetEncryption_t *)caCmdBuf;
-   dutCmdResponse_t *setEncrypResp = &gGenericResp;
-   FILE *file;
-	int ret;
-   DPRINT_INFO(WFA_OUT, "Entering wfaSetEncryptionCiscoSupplicant ...\n");
-
-    // stop the service
-   	sprintf(gCmdStr, "sc stop \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	Sleep(5000);
-   file = fopen("c:\\windows\\temp\\tmp.xml", "w+");
-
-//   file = fopen("c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\userConfiguration.xml", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-	  CiscoConfigGenerateUpperPart(file);
-
-	/*
-    sprintf(gCmdStr,\"<configuration minor_version=\"1\" development_version=\"3\" major_version=\"5" >\n");
-    fputs(gCmdStr, file);
-
-    sprintf(gCmdStr,"<UserConfiguration major_version=\"5\" minor_version=\"1\" development_version=\"1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<networks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<group>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<groupName>Local networks</groupName>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<allowUserToSeeScanlist>true</allowUserToSeeScanlist>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<wifiNetwork>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"<displayName>%s</displayName>\n",setEncryp->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<connectionTimeout>40</connectionTimeout>\n");
-    fputs(gCmdStr, file);
-	
-    sprintf(gCmdStr,"<ssid>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<name>%s</name>\n",setEncryp->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</ssid>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<associationTimeout>3</associationTimeout>\n");
-    fputs(gCmdStr, file);
-
-	if(setEncryp->encpType == ENCRYPT_WEP)
-	{
-		sprintf(gCmdStr,"<sharedKeyNetwork>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<userConnection>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<wep>\n");
-		fputs(gCmdStr, file);
-		printf(" The WEP key Length = %i",strlen(setEncryp->keys[0]));
-		printf(" \nThe WEP key  = %s",setEncryp->keys[0]);
-
-		if(strlen(setEncryp->keys[0]) == 10)
-		{
-			sprintf(gCmdStr,"<keyIs40Bits>\n");
-			fputs(gCmdStr, file);
-		}
-		else
-		{
-			sprintf(gCmdStr,"<keyIs128Bits>\n");
-			fputs(gCmdStr, file);			
-		}
-		sprintf(gCmdStr,"<keyFromProfile>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<hex encryptContent=\"true\" persistentHandle=\"true\">\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<EncryptedData xmlns=\"http://www.w3.org/2001/04/xmlenc#\" Type=\"http://www.w3.org/2001/04/xmlenc#Content\">\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<CipherData>\n");
-		fputs(gCmdStr, file);
-		if(strlen(setEncryp->keys[0]) == 10)
-		{
-			if(strncmp(setEncryp->keys[0], "1234abcdef", 10) == 0 )
-			{
-				if (strncmp(setEncryp->ssid, "WEP", 3) == 0)
-				{
-					sprintf(gCmdStr,"<CipherValue>lXzhJYsRhm11bNaOxb2kctjfjFyfMrrQdPKsaKgyK6GMo+um4AjfC9yNFPiyIz5MAotGkofVLE542LIFsqGR9j3s4S+rLaKHFUQ83BXcJZ0zs7+W8e8EfZcais0aKpCeBkHxXjNhWR9UwDmXd73dl+7h9N+ZeKXNfK64l5cq4wwSKO5mwUbDbKoZJot2wbYFSiCvYdxeki7vamP9LF9PIA==</CipherValue>\n");
-				}
-			}
-		}
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</CipherData>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</EncryptedData>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</hex>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</keyFromProfile>\n");
-		fputs(gCmdStr, file);
-		if(strlen(setEncryp->keys[0]) == 10)
-		{
-			sprintf(gCmdStr,"</keyIs40Bits>\n");
-			fputs(gCmdStr, file);
-		}
-		else
-		{
-			sprintf(gCmdStr,"</keyIs128Bits>\n");
-			fputs(gCmdStr, file);			
-		}
-		sprintf(gCmdStr,"<ieee80211Authentication>open</ieee80211Authentication>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</wep>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</userConnection>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</sharedKeyNetwork>\n");
-		fputs(gCmdStr, file);
-	}
-	else
-	{
-		sprintf(gCmdStr,"<openNetwork>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<userConnection/>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</openNetwork>\n");
-		fputs(gCmdStr, file);
-	}
-
-    sprintf(gCmdStr,"</wifiNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</group>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</networks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</UserConfiguration>\n");
-    fputs(gCmdStr, file);*/
-
-    sprintf(gCmdStr,"\t<networks>\n",gnetIf);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<globalNetworks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<wifiNetwork>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t<displayName>%s</displayName>\n",setEncryp->ssid);
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t\t\t\t<connectionTimeout>40</connectionTimeout>\n");
-    fputs(gCmdStr, file);                     
-    sprintf(gCmdStr,"\t\t\t\t<ssid>\n");
-    fputs(gCmdStr, file);                 
-	sprintf(gCmdStr,"\t\t\t\t\t<name>%s</name>\n",setEncryp->ssid);
-    fputs(gCmdStr, file);                  
-    sprintf(gCmdStr,"\t\t\t\t</ssid>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t<associationTimeout>3</associationTimeout>\n");
-    fputs(gCmdStr, file);                     
-    sprintf(gCmdStr,"\t\t\t\t<CCX>\n");
-    fputs(gCmdStr, file);                 
-    sprintf(gCmdStr,"\t\t\t\t\t<Diagnostics>\n");
-    fputs(gCmdStr, file);                
-    sprintf(gCmdStr,"\t\t\t\t\t\t<AuthorizedProfile>false</AuthorizedProfile>\n");
-    fputs(gCmdStr, file);                 
-    sprintf(gCmdStr,"\t\t\t\t\t\t<Channel>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<EnableClientReporting>false</EnableClientReporting>\n");
-    fputs(gCmdStr, file);                         
-    sprintf(gCmdStr,"\t\t\t\t\t\t</Channel>\n");
-    fputs(gCmdStr, file);                            
-    sprintf(gCmdStr,"\t\t\t\t\t</Diagnostics>\n");
-    fputs(gCmdStr, file);                             
-    sprintf(gCmdStr,"\t\t\t\t\t<RadioMeasurement>\n");
-    fputs(gCmdStr, file);                         
-    sprintf(gCmdStr,"\t\t\t\t\t\t<disabled/>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t\t</RadioMeasurement>\n");
-    fputs(gCmdStr, file);                    
-    sprintf(gCmdStr,"\t\t\t\t</CCX>\n");
-    fputs(gCmdStr, file);
-
-	// for WEP
-	if(setEncryp->encpType == ENCRYPT_WEP)
-	{
-		sprintf(gCmdStr,"\t\t\t\t<sharedKeyNetwork>\n");
-		fputs(gCmdStr, file); 
-		sprintf(gCmdStr,"\t\t\t\t\t<userConnection>\n");
-		fputs(gCmdStr, file); 
-		sprintf(gCmdStr,"\t\t\t\t\t\t<wep>\n");
-		fputs(gCmdStr, file); 
-
-
-		if(strlen(setEncryp->keys[0]) == 10)
-		{
-			sprintf(gCmdStr,"\t\t\t\t\t\t\t<keyIs40Bits>\n");
-			fputs(gCmdStr, file); 
-		}
-		else
-		{
-			sprintf(gCmdStr,"\t\t\t\t\t\t\t<keyIs128Bits>\n");
-			fputs(gCmdStr, file); 		
-		}
-
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<keyFromProfile>\n");
-		fputs(gCmdStr, file); 
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<hex encryptContent=\"true\" >%s</hex>\n",setEncryp->keys[0]);
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</keyFromProfile>\n");
-		fputs(gCmdStr, file);
-
-		if(strlen(setEncryp->keys[0]) == 10)
-		{
-			sprintf(gCmdStr,"\t\t\t\t\t\t\t</keyIs40Bits>\n");
-			fputs(gCmdStr, file); 
-		}
-		else
-		{
-			sprintf(gCmdStr,"\t\t\t\t\t\t\t</keyIs128Bits>\n");
-			fputs(gCmdStr, file); 		
-		}
-
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t<ieee80211Authentication>open</ieee80211Authentication>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"\t\t\t\t\t\t</wep>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"\t\t\t\t\t</userConnection>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"\t\t\t\t</sharedKeyNetwork>\n");
-		fputs(gCmdStr, file); 
-
-	}
-	else
-	{
-	//For Open
-		sprintf(gCmdStr,"\t\t\t\t<openNetwork>\n");
-		fputs(gCmdStr, file);                     
-		sprintf(gCmdStr,"\t\t\t\t\t<userConnection/>\n");
-		fputs(gCmdStr, file);        
-		sprintf(gCmdStr,"\t\t\t\t</openNetwork>\n");
-		fputs(gCmdStr, file);
-	}
-
-
-    sprintf(gCmdStr,"\t\t\t</wifiNetwork>\n");
-    fputs(gCmdStr, file);                  
-    sprintf(gCmdStr,"\t\t</globalNetworks>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t<group>\n");
-    fputs(gCmdStr, file);                  
-    sprintf(gCmdStr,"\t\t\t<groupName>Default</groupName>\n");
-    fputs(gCmdStr, file);             
-    sprintf(gCmdStr,"\t\t\t<allowUserToSeeScanlist>true</allowUserToSeeScanlist>\n");
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t\t</group>\n");
-    fputs(gCmdStr, file);              
-    sprintf(gCmdStr,"\t</networks>\n");
-    fputs(gCmdStr, file);
-	
-	CiscoConfigGenerateLowerPart(file);
-
-  }
-  fclose(file);
-
-  // sign the xml file
-  sprintf(gCmdStr, "SignProfile.bat c:\\windows\\temp\\tmp.xml c:\\windows\\temp\\tmp1.xml");
-	system(gCmdStr);
-	Sleep(1000);
-  // copy to the destnationfolder
-	sprintf(gCmdStr, "copy /Y c:\\windows\\temp\\tmp1.xml \"c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\configuration.xml\"");
-	ret=system(gCmdStr);
-   //file = fopen("c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\userConfiguration.xml", "w+");
-	Sleep(1000);
-	printf("Executing %s\n",gCmdStr);
-	printf("Return value is %d\n",ret);
-  /* start the service */
-	sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-   setEncrypResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_ENCRYPTION_RESP_TLV, 4, (BYTE *)setEncrypResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE;
-}
-
-int wfaSetEncryptionMarvell(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEncryption_t *setEncryp = (caStaSetEncryption_t *)caCmdBuf;
-   dutCmdResponse_t *setEncrypResp = &gGenericResp;
-   FILE *file;
-   char filename[64];
-   
-   printf("Inside wfaSetEncryptionMarvell fun...\n");
-
-   // stop the service before adding config file
-
-   	sprintf(gCmdStr, "Taskkill /T /F /IM Mrv8000x.exe");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-	Sleep(1000);
-
-   // Check the file in C:\WFA\MarvellSupplicant
-	strcpy(filename,setEncryp->ssid);
-	strcat (filename,".cfg");
-	printf("The marvell config file is : %s",filename);
-
-	sprintf(gCmdStr, "c:\\WFA\\MarvellSupplicant\\%s",filename);
-	file = fopen(gCmdStr,"r");
-	if(file==NULL) 
-	{
-		printf("Error Opening Marvell config file .\n");
-		return 1;
-	}
-	else 
-	{
-		fclose(file);
-
-		// Copy the file into c:\program files\Marvell CBxxx
-   		sprintf(gCmdStr, "copy /Y c:\\WFA\\MarvellSupplicant\\%s \"c:\\Program\ Files\\Marvell\ CB82\\Data.cfg\"",filename);
-		system(gCmdStr);
-		printf("Executing %s\n",gCmdStr);
-	}
-	Sleep(3000);
-   // Start the service
-
-	sprintf(gCmdStr, " start \"Marvell\" /D \"c:\\Program\ Files\\Marvell\ CB82\" Mrv8000x.exe");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-	Sleep(3000);
-
-   setEncrypResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_ENCRYPTION_RESP_TLV, 4, (BYTE *)setEncrypResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE;
-}
-
-int wfaSetEncryptionWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEncryption_t *setEncryp = (caStaSetEncryption_t *)caCmdBuf;
-   dutCmdResponse_t *setEncrypResp = &gGenericResp;
-   FILE *file;
-   int i;
-   // stop the service before adding config file
-   // Seems not required to stop the service as
-   // the config file is loaded once when it starts
-
-#ifdef _CYGWIN
-   file = fopen("C:/WFA/WpaSupplicant/wpa_supplicant.conf", "w+");
-#else
-file = fopen("c:\\WFA\\WpaSupplicant\\wpa_supplicant.conf", "w+");
-#endif
-  /* we create a file for reading and writing */
-
-  printf("Inside SetEncryptionWpaSupplicant fun...\n");
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-    sprintf(gCmdStr,"ctrl_interface=\\Device\\NPF_%s\n",gnetIf);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"ap_scan=2\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"network={\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\tssid=\"%s\"\n",setEncryp->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\tkey_mgmt=NONE\n");
-    fputs(gCmdStr, file);
-
-	// TBD: It works for HEX keys only
-
-	if(setEncryp->encpType == ENCRYPT_WEP)
-	{
-	  for(i=0; i<4; i++)
-	  {
-		 if(setEncryp->keys[i][0] != '\0')
-		 {
-			 sprintf(gCmdStr, "\twep_key%i=%s\n",i,setEncryp->keys[i]);
-			 fputs(gCmdStr, file);
-		 }
-	  }
-
-	  /* set active key */
-	  i = setEncryp->activeKeyIdx;
-	  if(setEncryp->keys[i][0] != '\0')
-	  {
-		  sprintf(gCmdStr, "\twep_tx_keyidx=%i\n",setEncryp->activeKeyIdx);
-		  fputs(gCmdStr, file);
-	  }
-	}
-	sprintf(gCmdStr,"}\n");
-    fputs(gCmdStr, file);
-  }
-  fclose(file);
-
-	sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-
-   setEncrypResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_ENCRYPTION_RESP_TLV, 4, (BYTE *)setEncrypResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE;
-}
 int wfaSetEncryption(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
    caStaSetEncryption_t *setEncryp = (caStaSetEncryption_t *)caCmdBuf;
    dutCmdResponse_t *setEncrypResp = &gGenericResp;
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   int i;
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
-   /*
-    * disable the network first
-    */
-   sprintf(gCmdStr, "wpa_cli -i %s disable_network 0", setEncryp->intf);
-   system(gCmdStr);
-
-   /*
-    * set SSID
-    */    
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", setEncryp->intf, setEncryp->ssid);
-   system(gCmdStr);
-
-   /*
-    * Tell the supplicant for infrastructure mode (1)
-    */
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 mode 0", setEncryp->intf);
-   system(gCmdStr);
-
-   /*
-    * set Key management to NONE (NO WPA) for plaintext or WEP
-    */
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 key_mgmt NONE", setEncryp->intf);
-   system(gCmdStr);
-
-   /* set keys */
-   if(setEncryp->encpType == 1)
-   {
-      for(i=0; i<4; i++)
-      {
-         if(setEncryp->keys[i][0] != '\0')
-         {
-             sprintf(gCmdStr, "wpa_cli -i %s set_network 0 wep_key%i %s",
-                   setEncryp->intf, i, setEncryp->keys[i]);
-             system(gCmdStr);
-         }
-      }
-
-      /* set active key */
-      i = setEncryp->activeKeyIdx;
-      if(setEncryp->keys[i][0] != '\0')
-      {
-          sprintf(gCmdStr, "wpa_cli -i %s set_network 0 wep_tx_keyidx %i",
-            setEncryp->intf, setEncryp->activeKeyIdx);
-          system(gCmdStr);
-      }
-   }
-   else /* clearly remove the keys -- reported by p.schwann */
-   {
-      for(i = 0; i < 4; i++)
-      {
-          sprintf(gCmdStr, "wpa_cli -i %s set_network 0 wep_key%i \"\"", setEncryp->intf, i);
-          system(gCmdStr);
-      }
-   }
-
-   sprintf(gCmdStr, "wpa_cli -i %s enable_network 0", setEncryp->intf);
-   system(gCmdStr);
-
-#else
    switch(geSupplicant)
    {
-	   case eWindowsZeroConfig:
-		   wfaSetEncryptionZeroConfig(len,caCmdBuf,respLen,respBuf);			
-		   break;
-	   case eMarvell:
-		   wfaSetEncryptionMarvell(len,caCmdBuf,respLen,respBuf);	
-		   break;
-	   case eWpaSupplicant:
-		   wfaSetEncryptionWpaSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eCiscoSecureClient:
-		   wfaSetEncryptionCiscoSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eOpen1x:
-		   break;
-	   default:
-		   setEncrypResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_ENCRYPTION_RESP_TLV, 4, (BYTE *)setEncrypResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;
-		   break;
+	     case eWindowsZeroConfig:
+		    wfaSetEncryptionZeroConfig(len,caCmdBuf,respLen,respBuf);			
+		    break;
+
+	     default:
+		    setEncrypResp->status = STATUS_INVALID;
+		    wfaEncodeTLV(WFA_STA_SET_ENCRYPTION_RESP_TLV, 4, (BYTE *)setEncrypResp, respBuf);   
+		    *respLen = WFA_TLV_HDR_LEN + 4;
+		    break;
    }
 
-#endif
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 
@@ -2218,560 +1238,161 @@ int wfaStaSetEapTLSZeroConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *respB
    dutCmdResponse_t *setEapTlsResp = &gGenericResp;
 
    FILE *file,*tmpfd;
-   char string[256],Interfacename[64];
-   int i;
+   char string[256],Interfacename[64], pfile[128], intfile[128];
 
+   DPRINT_INFO(WFA_OUT, "Entering ...\n");
 
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapTLS ...\n");
-
-   //sprintf(gCmdStr, "wifi_config -limit %s -enable", gnetIf);
-   //system(gCmdStr);
-
-
-   sprintf(gCmdStr, "del /F c:\\WFA\\tmp.xml");
+   sprintf(pfile, "%s\\Temp\\tmp.xml", sigmaPath);
+   sprintf(gCmdStr, "del /F /Q %s", pfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
    system(gCmdStr);
 
+   file = fopen(pfile, "w+");
+   if(file==NULL) 
+   {
+       DPRINT_ERR(WFA_ERR, "Can't create file.\n");
+       setEapTlsResp->status = STATUS_ERROR;
+       wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);
+       *respLen = WFA_TLV_HDR_LEN + 4;
 
-#ifdef _CYGWIN
-   file = fopen("/tmp/tmp.xml", "w+");
-#else
-	file = fopen("c:\\WFA\\tmp.xml", "w+");
-#endif
- /* we create a file for reading and writing */
+       return WFA_FAILURE;
+   }
+   else 
+   {
+       sprintf(gCmdStr,"<?xml version=\"1.0\"?>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<name>%s</name>\n",setTLS->ssid);
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<SSIDConfig>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t<SSID>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t<name>%s</name>\n",setTLS->ssid);
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t</SSID>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t<nonBroadcast>false</nonBroadcast>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t</SSIDConfig>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<connectionType>ESS</connectionType>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<connectionMode>auto</connectionMode>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<autoSwitch>true</autoSwitch>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t<MSM>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t<security>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
+       fputs(gCmdStr, file);
 
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-    sprintf(gCmdStr,"<?xml version=\"1.0\"?>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<name>%s</name>\n",setTLS->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<SSIDConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<SSID>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<name>%s</name>\n",setTLS->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t</SSID>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<nonBroadcast>false</nonBroadcast>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t</SSIDConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<connectionType>ESS</connectionType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<connectionMode>auto</connectionMode>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<autoSwitch>true</autoSwitch>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<MSM>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<security>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
-    fputs(gCmdStr, file);
+	   if((strcmp(setTLS->keyMgmtType, "WPA2") == 0) || (strcmp(setTLS->keyMgmtType, "wpa2") == 0))
+       {
+          sprintf(gCmdStr,"\t\t\t\t<authentication>WPA2</authentication>\n");
+          fputs(gCmdStr, file);
+          sprintf(gCmdStr,"\t\t\t\t<encryption>AES</encryption>\n");
+          fputs(gCmdStr, file);
+	   }
+       else if((strcmp(setTLS->keyMgmtType, "WPA") == 0) || (strcmp(setTLS->keyMgmtType, "wpa") == 0))
+       {
+          sprintf(gCmdStr,"\t\t\t\t<authentication>WPA</authentication>\n");
+          fputs(gCmdStr, file);
+          sprintf(gCmdStr,"\t\t\t\t<encryption>TKIP</encryption>\n");
+          fputs(gCmdStr, file);
+       }
 
-	if((strcmp(setTLS->keyMgmtType, "WPA2") == 0) || (strcmp(setTLS->keyMgmtType, "wpa2") == 0))
-	{
-    	sprintf(gCmdStr,"\t\t\t\t<authentication>WPA2</authentication>\n");
-    	fputs(gCmdStr, file);
-    	sprintf(gCmdStr,"\t\t\t\t<encryption>AES</encryption>\n");
-    	fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t<useOneX>true</useOneX>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
+       fputs(gCmdStr, file);
 
-	}
-	else if((strcmp(setTLS->keyMgmtType, "WPA") == 0) || (strcmp(setTLS->keyMgmtType, "wpa") == 0))
-	{
-    	sprintf(gCmdStr,"\t\t\t\t<authentication>WPA</authentication>\n");
-    	fputs(gCmdStr, file);
-    	sprintf(gCmdStr,"\t\t\t\t<encryption>TKIP</encryption>\n");
-    	fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t<OneX xmlns=\"http://www.microsoft.com/networking/OneX/v1\">\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t<EAPConfig>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t\t<EapHostConfig xmlns=\"http://www.microsoft.com/provisioning/EapHostConfig\">\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t\t\t<EapMethod>\n");
+       fputs(gCmdStr, file);
 
-	}
+       sprintf(gCmdStr,"\t\t\t\t\t\t\t<Type xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">13</Type>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t\t\t\t<VendorId xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</VendorId>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t\t\t\t<VendorType xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</VendorType>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t\t\t\t<AuthorId xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</AuthorId>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t\t\t</EapMethod>\n");
+       fputs(gCmdStr, file);
 
-	
-//	if((strcmp(setTLS->encrptype, "TKIP") == 0) || (strcmp(setTLS->encrptype, "tkip") == 0))
-//	{
-  //  	sprintf(gCmdStr,"\t\t\t\t<encryption>TKIP</encryption>\n");
-    //	fputs(gCmdStr, file);
-//	}
-//	else if((strcmp(setTLS->encrptype, "AES-CCMP") == 0) || (strcmp(setTLS->encrptype, "aes-ccmp") == 0))
-//	{
-//    	sprintf(gCmdStr,"\t\t\t\t<encryption>AES</encryption>\n");
-  //  	fputs(gCmdStr, file);
-//	}
+       sprintf(gCmdStr,"\t\t\t\t\t\t<ConfigBlob>020000002A00000007000000000000000000000000000000000000000000000000000000000000000000</ConfigBlob>\n");
+	   fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t\t</EapHostConfig>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t\t</EAPConfig>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t\t</OneX>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t\t</security>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"\t</MSM>\n");
+       fputs(gCmdStr, file);
+       sprintf(gCmdStr,"</WLANProfile>\n");
+       fputs(gCmdStr, file);
+    }
+    fclose(file);
 
-    sprintf(gCmdStr,"\t\t\t\t<useOneX>true</useOneX>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
-    fputs(gCmdStr, file);
-
-    sprintf(gCmdStr,"\t\t\t<OneX xmlns=\"http://www.microsoft.com/networking/OneX/v1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t<EAPConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<EapHostConfig xmlns=\"http://www.microsoft.com/provisioning/EapHostConfig\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t<EapMethod>\n");
-    fputs(gCmdStr, file);
-
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<Type xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">13</Type>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<VendorId xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</VendorId>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<VendorType xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</VendorType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<AuthorId xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</AuthorId>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t</EapMethod>\n");
-    fputs(gCmdStr, file);
-
-#ifdef _CYGWIN
-	file = fopen("c:\\WFA\\Sigma\\Certificates\\%s.txt", "r");
-#else
-	//sprintf(gCmdStr,"c:\\WFA\\Sigma\\Certificates\\%s.txt",setTLS->clientCertificate);
-	//certFile = fopen(gCmdStr,"r");
-#endif
-//	fgets(string, 256, certFile);
-//	fclose(tmpfd);
-//    sprintf(gCmdStr,"\t\t\t\t\t\t<ConfigBlob>020000002A0000001500000014000000%s000001000000</ConfigBlob>\n",string);
-
-//    sprintf(gCmdStr,"\t\t\t\t\t\t<ConfigBlob>020000002A0000001500000014000000742C3192E607E424EB4549542BE1BBC53E6174E2000001000000</ConfigBlob>\n");
-  // WORKING ON VISTA.. FOR wpa2 - tls  
-    sprintf(gCmdStr,"\t\t\t\t\t\t<ConfigBlob>020000002A00000007000000000000000000000000000000000000000000000000000000000000000000</ConfigBlob>\n");
-	fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t</EapHostConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t</EAPConfig>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t</OneX>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t</security>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t</MSM>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</WLANProfile>\n");
-    fputs(gCmdStr, file);
-
-  }
-  fclose(file);
-#ifdef _CYGWIN
-   sprintf(gCmdStr, "wifi_config -limit %s -add %s", setTLS->intf,"c:\\\\cygwin\\\\tmp\\\\tmp.xml");
-#else
-   //sprintf(gCmdStr, "wifi_config -limit %s -add %s", gnetIf,"c:\\\\windows\\\\temp\\\\tmp.xml");
-
-  tmpfd = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
+    sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+    tmpfd = fopen(intfile, "r");
     if(tmpfd == NULL)
     {
-		printf("\n Error opening the interface file \n");
+       DPRINT_ERR(WFA_ERR, "Error opening the interface file \n");
+       setEapTlsResp->status = STATUS_ERROR;
+       wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);
+       *respLen = WFA_TLV_HDR_LEN + 4;
+
+       return WFA_FAILURE;
     }
-	else
-	{
-	    for(;;)
-	    {
-	        if(fgets(string, 256, tmpfd) == NULL)
-	           break; 
-		}
-		fclose(tmpfd);
+  	else
+    {
+	   for(;;)
+	   {
+	       if(fgets(string, 256, tmpfd) == NULL)
+	          break; 
+	   }
+	   fclose(tmpfd);
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
+	   if(strncmp(string, "IFNAME", 6) == 0)
+	   {
+	       char *str;
+	       str = strtok(string, "\"");
+	       str = strtok(NULL, "\"");
+	       if(str != NULL)
+	       {
+	           strcpy(&Interfacename[0],str);
+	       }
+	   }
+  	}
 
-			  }
+    sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all",pfile, &Interfacename[0]);
 
-	}
-
-   sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all","c:\\WFA\\tmp.xml",&Interfacename[0]);
-
-
-#endif
-   printf("Executing %s\n",gCmdStr);
-   system(gCmdStr);
+    DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+    system(gCmdStr);
 
 
-   setEapTlsResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
+    setEapTlsResp->status = STATUS_COMPLETE;
+    wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);
+    *respLen = WFA_TLV_HDR_LEN + 4;
 
-   return TRUE;
+    DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+    return WFA_SUCCESS;
 }
-
-int wfaStaSetEapTLSCiscoSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEapTLS_t *setTLS = (caStaSetEapTLS_t *)caCmdBuf;
-   char *ifname = setTLS->intf;
-   dutCmdResponse_t *setEapTlsResp = &gGenericResp;
-   FILE *file;
-   	int ret;
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapTLSCiscoSupplicant ...\n");
-
-    // stop the service
-   	sprintf(gCmdStr, "sc stop \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	file = fopen("c:\\windows\\temp\\tmp.xml", "w+");
-   //file = fopen("c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\userConfiguration.xml", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-/*
-    sprintf(gCmdStr,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<UserConfiguration major_version=\"5\" minor_version=\"1\" development_version=\"1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<networks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<group>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<groupName>Local networks</groupName>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<allowUserToSeeScanlist>true</allowUserToSeeScanlist>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<wifiNetwork>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"<displayName>%s</displayName>\n",setTLS->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<connectionTimeout>40</connectionTimeout>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<ssid>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<name>%s</name>\n",setTLS->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</ssid>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<associationTimeout>3</associationTimeout>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<authenticationNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<userAuthentication>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<collectionBehavior>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<withCertificate>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<cacheCertificateFromUser>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<forever/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</cacheCertificateFromUser>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<allowedCertSourceFromUser>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<smartCardOrOsCertificate/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<cachePinForSmartcard>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<never/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</cachePinForSmartcard>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</allowedCertSourceFromUser>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</withCertificate>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</collectionBehavior>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<authenticationMethod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<eapTls>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<doNotValidateServerCertificate/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<unprotectedIdentityPattern encryptContent=\"true\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<EncryptedData xmlns=\"http://www.w3.org/2001/04/xmlenc#\" Type=\"http://www.w3.org/2001/04/xmlenc#Content\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<CipherData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<CipherValue>J+Lk109O2trE3e47aTdT1GE9z5l4OUARwyAbW6FWoqc=</CipherValue>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</CipherData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</EncryptedData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</unprotectedIdentityPattern>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<enableFastReconnect>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<alwaysAttempt/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</enableFastReconnect>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<certificateSource>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<certificateFromUser/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</certificateSource>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</eapTls>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</authenticationMethod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</userAuthentication>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<setting802.1x>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<authPeriod>30</authPeriod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<heldPeriod>60</heldPeriod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<startPeriod>30</startPeriod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<maxStart>3</maxStart>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</setting802.1x>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<associationMode>\n");
-    fputs(gCmdStr, file);
-	if(strncmp(setTLS->keyMgmtType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"<wpa2>\n");
-		fputs(gCmdStr, file);
-	}
-	else if (strncmp(setTLS->keyMgmtType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"<wpa>\n");
-		fputs(gCmdStr, file);
-	}
-	if((strcmp(setTLS->encrptype, "TKIP") == 0) || (strcmp(setTLS->encrptype, "tkip") == 0))
-	{
-		sprintf(gCmdStr,"<encryption>TKIP</encryption>\n");
-		fputs(gCmdStr, file);
-	}
-	else if((strcmp(setTLS->encrptype, "AES-CCMP") == 0) || (strcmp(setTLS->encrptype, "aes-ccmp") == 0))
-	{
-		sprintf(gCmdStr,"<encryption>AES</encryption>\n");
-		fputs(gCmdStr, file);
-	}
-	if(strncmp(setTLS->keyMgmtType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"</wpa2>\n");
-		fputs(gCmdStr, file);
-	}
-	else if (strncmp(setTLS->keyMgmtType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"</wpa>\n");
-		fputs(gCmdStr, file);
-	}
-    sprintf(gCmdStr,"</associationMode>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</authenticationNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</wifiNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</group>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</networks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</UserConfiguration>\n");
-    fputs(gCmdStr, file);
-
-	
-	*/
-	CiscoConfigGenerateUpperPart(file);
-	CiscoEAPConfigGenerateUpperPart(file,&(setTLS->ssid[0]));
-
-    sprintf(gCmdStr,"\t\t\t\t\t\t<authenticationMethod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<eapTls>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<doNotValidateServerCertificate/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<unprotectedIdentityPattern encryptContent=\"true\" >[username]</unprotectedIdentityPattern>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<enableFastReconnect>\n");
-    fputs(gCmdStr, file);     
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<alwaysAttempt/>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</enableFastReconnect>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<certificateSource>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<certificateFromUser/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</certificateSource>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t</eapTls>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t</authenticationMethod>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t<collectionBehavior>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t<withCertificate>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<cacheCertificateFromUser>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<forever/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</cacheCertificateFromUser>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<allowedCertSourceFromUser>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<smartCardOrOsCertificate/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<cachePinForSmartcard>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t<never/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t</cachePinForSmartcard>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</allowedCertSourceFromUser>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t</withCertificate>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t</collectionBehavior>\n");
-    fputs(gCmdStr, file);
-
-	CiscoEAPConfigGenerateLowerPart(file,setTLS->encrptype,setTLS->keyMgmtType);
-	CiscoConfigGenerateLowerPart(file);
-  }
-  fclose(file);
-
-  // sign the xml file
-  sprintf(gCmdStr, "SignProfile.bat c:\\windows\\temp\\tmp.xml c:\\windows\\temp\\tmp1.xml");
-	system(gCmdStr);
-	Sleep(1000);
-  // copy to the destnationfolder
-	sprintf(gCmdStr, "copy /Y c:\\windows\\temp\\tmp1.xml \"c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\configuration.xml\"");
-	ret=system(gCmdStr);
-	Sleep(1000);
-		printf("Executing %s\n",gCmdStr);
-	printf("Return value is %d\n",ret);
-  /* start the service */
-
-
-	sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-
-   setEapTlsResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);   
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE; 
-}
-
-
-
-
-int wfaStaSetEapTLSWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEapTLS_t *setTLS = (caStaSetEapTLS_t *)caCmdBuf;
-   char *ifname = setTLS->intf;
-   dutCmdResponse_t *setEapTlsResp = &gGenericResp;
-   FILE *file;
-
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapTLSWpaSupplicant ...\n");
-
-
-
-   file = fopen("c:\\WFA\\WpaSupplicant\\wpa_supplicant.conf", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-	  sprintf(gCmdStr,"ctrl_interface=\\Device\\NPF_%s\n",gnetIf);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"ap_scan=2\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"network={\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tssid=\"%s\"\n",setTLS->ssid);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tkey_mgmt=WPA-EAP\n");
-	  fputs(gCmdStr, file);
-
-	  if(strncmp(setTLS->keyMgmtType, "wpa2", 4) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA2\n");
-		  fputs(gCmdStr, file);
-	//	  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		//  fputs(gCmdStr, file);
-	  } else if (strncmp(setTLS->keyMgmtType, "wpa", 3) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA\n");
-		  fputs(gCmdStr, file);
-//		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-//		  fputs(gCmdStr, file);
-	  }
-
-	  if((strncmp(setTLS->encrptype, "TKIP",4) == 0) || (strncmp(setTLS->encrptype, "tkip",4) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-		  fputs(gCmdStr, file);
-	  }
-	  else if((strncmp(setTLS->encrptype, "AES-CCMP",8) == 0) || (strncmp(setTLS->encrptype, "aes-ccmp",8) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		  fputs(gCmdStr, file);
-	  }
-
-	  sprintf(gCmdStr,"\teap=TLS\n");
-	  fputs(gCmdStr, file);
-
-// For WAP2 Test Plan 
-
-	  sprintf(gCmdStr,"\tca_cert=\"%s.pem\"\n",setTLS->trustedRootCA);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tidentity=\"wifi-user\"\n");
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tprivate_key=\"%s.pem\"\n",setTLS->clientCertificate);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tclient_cert=\"%s.pem\"\n",setTLS->clientCertificate);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"}\n");
-  	  fputs(gCmdStr, file);
-  }
-  fclose(file);
-
-  /* start the service and stop the service */
-
-	sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-  printf("Executing %s\n",gCmdStr);
-   system(gCmdStr);
-
-   setEapTlsResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);   
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE; 
-}
-
 
 /*
  * wfaStaSetEapTLS():
@@ -2787,363 +1408,26 @@ int wfaStaSetEapTLS(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    caStaSetEapTLS_t *setTLS = (caStaSetEapTLS_t *)caCmdBuf;
    char *ifname = setTLS->intf;
    dutCmdResponse_t *setEapTlsResp = &gGenericResp;
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapTLS ...\n");
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   /*
-    * need to store the trustedROOTCA and clientCertificate into a file first.
-    */
-   sprintf(gCmdStr, "wpa_cli -i %s disable_network 0", ifname);
-   system(gCmdStr);
 
-   /* ssid */
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", ifname, setTLS->ssid);
-   system(gCmdStr);
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
-   /* key management */
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 key_mgmt WPA-EAP", ifname);
-   system(gCmdStr);
-
-   /* protocol WPA */
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 proto WPA", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 eap TLS", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ca_cert '\"%s\"'", ifname, setTLS->trustedRootCA);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 identity '\"wifi-user@wifilabs.local\"'", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 private_key '\"%s/%s\"'", ifname, CERTIFICATES_PATH, setTLS->clientCertificate);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 private_key_passwd '\"wifi\"'", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s enable_network 0", ifname);
-   system(gCmdStr);
-
-   setEapTlsResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-#else 
    switch(geSupplicant)
    {
-	   case eWindowsZeroConfig:
-		   wfaStaSetEapTLSZeroConfig(len,caCmdBuf,respLen,respBuf);			
-		   break;
-	   case eMarvell:
-		   break;
-	   case eWpaSupplicant:
-		   wfaStaSetEapTLSWpaSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eCiscoSecureClient:
-		   wfaStaSetEapTLSCiscoSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eOpen1x:
-		   break;
-	   default:
-		   setEapTlsResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;
-		   break;
+	     case eWindowsZeroConfig:
+		    wfaStaSetEapTLSZeroConfig(len,caCmdBuf,respLen,respBuf);			
+		    break;
+	   
+	     default:
+		    setEapTlsResp->status = STATUS_INVALID;
+		    wfaEncodeTLV(WFA_STA_SET_EAPTLS_RESP_TLV, 4, (BYTE *)setEapTlsResp, respBuf);   
+		    *respLen = WFA_TLV_HDR_LEN + 4;
+		    break;
    }
 
-#endif
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
-
-int wfaStaSetPSKCiscoSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetPSK_t *setPSK = (caStaSetPSK_t *)caCmdBuf;
-   dutCmdResponse_t *setPskResp = &gGenericResp;
-	int ret;
-   FILE *file;   
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetPSKCiscoSupplicant ...\n");
-
-   // stop the service
-   	sprintf(gCmdStr, "sc stop \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	Sleep(5000);
-	file = fopen("c:\\windows\\temp\\tmp.xml", "w+");
-
-   //file = fopen("c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\userConfiguration.xml", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-	CiscoConfigGenerateUpperPart(file);
-/*	
-    sprintf(gCmdStr,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-    fputs(gCmdStr, file);
-
-    sprintf(gCmdStr,"<UserConfiguration major_version=\"5\" minor_version=\"1\" development_version=\"1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<networks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<group>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<groupName>Local networks</groupName>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<allowUserToSeeScanlist>true</allowUserToSeeScanlist>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<wifiNetwork>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"<displayName>%s</displayName>\n",setPSK->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<connectionTimeout>40</connectionTimeout>\n");
-    fputs(gCmdStr, file);
-	
-    sprintf(gCmdStr,"<ssid>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<name>%s</name>\n",setPSK->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</ssid>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<associationTimeout>3</associationTimeout>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<sharedKeyNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<userConnection>\n");
-    fputs(gCmdStr, file);
-	if(strncmp(setPSK->keyMgmtType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"<wpa2>\n");
-		fputs(gCmdStr, file);
-	}
-	else if (strncmp(setPSK->keyMgmtType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"<wpa>\n");
-		fputs(gCmdStr, file);
-	}
-    sprintf(gCmdStr,"<keyFromProfile>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<ascii encryptContent=\"true\" persistentHandle=\"true\">\n");
-    fputs(gCmdStr, file);	
-    sprintf(gCmdStr,"<EncryptedData xmlns=\"http://www.w3.org/2001/04/xmlenc#\" Type=\"http://www.w3.org/2001/04/xmlenc#Content\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<CipherData>\n");
-    fputs(gCmdStr, file);
-	// cipher changes for each ssid+key combination
-	// Hardcodinig according to test plan currently
-	printf(" \nthe Passphrase : %s",setPSK->passphrase);
-
-	if(strncmp(setPSK->passphrase, "12345678", 8) == 0 )
-	{
-		if (strncmp(setPSK->ssid, "WPA2", 4) == 0)
-		{
-			sprintf(gCmdStr,"<CipherValue>fbiAbLFtPMBwpWJLP6tUs+yNdKUdELj783nf+V99lcXJwyfUuDutrYLfJjb3eyMrcWz0rdKeStz6DzADAezDhUL0DiN6dSVZFABQJw8gG1y3qqFWFoh8RAmguA9ce4xP</CipherValue>\n");
-		}
-		else if(strncmp(setPSK->ssid, "Roaming", 7) == 0)
-		{
-			sprintf(gCmdStr,"<CipherValue>Nxpv0XrgyZ2k6V3pXnA+sN3k628V+lHBvOyHSHpOByVX1EF7NyqqV2BiIisUnIycf4pvwZt7cjPoyHZOe5Kv+cNdaDpeOrOtrjyoYtndCudraP7lM95p+s49LJa9Khhx6nBr1ZhpH7uGF6/V//ql1w==</CipherValue>\n");
-		}
-		else if(strncmp(setPSK->ssid, "Multicast", 9) == 0)
-		{
-			sprintf(gCmdStr,"<CipherValue>JPo6L8wqmhMuBrxHmJH76Fw6qcWLmlPxkO0ouwgkiWq5ws8wQWpnFWtXtTYw2FxBa8jZjmXyMMZGmxWgA8HQ4xX0IoxcevYHBitw6b4Q1mY1QbSRWYE7UFRkQFt8HwAfNNEMDEnG93bJSa+XjX7X6w==</CipherValue>\n");
-		}
-		else if(strncmp(setPSK->ssid, "Negative", 8) == 0)
-		{
-			sprintf(gCmdStr,"<CipherValue>BnPPEEsaa6iTb21IeR/Jw2EpSw0mjl5ITXSstbng/dUZKIKJNvr8pfjWAJczzFEtE8hMXkOjD3l2ws/z64Z9cHZHgxvB+3Egg28Y0222Xxfl8Y4HWp15KBBQKXY3WxeNczNAU0dgyWnhhZq/9tmAWg==</CipherValue>\n");
-		}
-
-	}
-	else if(strncmp(setPSK->passphrase, "1234abcdef", 10) == 0 )
-	{
-
-		if(strncmp(setPSK->ssid, "WEP", 3) == 0)
-		{
-			sprintf(gCmdStr,"<CipherValue>MQFmSt81WGBXpUqk3T7tVUJUZpDrV3fWaOFLSs6dyoe8zLECBaFQg8u5rHNp42WQMxWQp74ecK1WAi5h4tm41w94yHyOeyTJtf79o6y05lZ0mzXvj65GgwzoVbkQfBMmQCnhlXkj2mF1hz+bbyLDpQ==</CipherValue>\n");
-		}
-	}
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</CipherData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</EncryptedData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</ascii>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</keyFromProfile>\n");
-    fputs(gCmdStr, file);
-
-//	if((strcmp(setPSK->encpType, "TKIP") == 0) || (strcmp(setPSK->encpType, "tkip") == 0))
-	if(setPSK->encpType == ENCRYPT_TKIP )
-	{
-		sprintf(gCmdStr,"<encryption>TKIP</encryption>\n");
-		fputs(gCmdStr, file);
-	}
-	
-	else if(setPSK->encpType == ENCRYPT_AESCCMP )
-//	else if((strcmp(setPSK->encpType, "AES-CCMP") == 0) || (strcmp(setPSK->encpType, "aes-ccmp") == 0))
-	{
-		sprintf(gCmdStr,"<encryption>AES</encryption>\n");
-		fputs(gCmdStr, file);
-	}
-
-	if(strncmp(setPSK->keyMgmtType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"</wpa2>\n");
-		fputs(gCmdStr, file);
-	}
-	else if (strncmp(setPSK->keyMgmtType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"</wpa>\n");
-		fputs(gCmdStr, file);
-	}
-    sprintf(gCmdStr,"</userConnection>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</sharedKeyNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</wifiNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</group>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</networks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</UserConfiguration>\n");
-    fputs(gCmdStr, file);
-*/
-
-    sprintf(gCmdStr,"\t<networks>\n",gnetIf);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<globalNetworks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<wifiNetwork>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t<displayName>%s</displayName>\n",setPSK->ssid);
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t\t\t\t<connectionTimeout>40</connectionTimeout>\n");
-    fputs(gCmdStr, file);                     
-    sprintf(gCmdStr,"\t\t\t\t<ssid>\n");
-    fputs(gCmdStr, file);                 
-	sprintf(gCmdStr,"\t\t\t\t\t<name>%s</name>\n",setPSK->ssid);
-    fputs(gCmdStr, file);                  
-    sprintf(gCmdStr,"\t\t\t\t</ssid>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t<associationTimeout>3</associationTimeout>\n");
-    fputs(gCmdStr, file);                     
-    sprintf(gCmdStr,"\t\t\t\t<CCX>\n");
-    fputs(gCmdStr, file);                 
-    sprintf(gCmdStr,"\t\t\t\t\t<Diagnostics>\n");
-    fputs(gCmdStr, file);                
-    sprintf(gCmdStr,"\t\t\t\t\t\t<AuthorizedProfile>false</AuthorizedProfile>\n");
-    fputs(gCmdStr, file);                 
-    sprintf(gCmdStr,"\t\t\t\t\t\t<Channel>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<EnableClientReporting>false</EnableClientReporting>\n");
-    fputs(gCmdStr, file);                         
-    sprintf(gCmdStr,"\t\t\t\t\t\t</Channel>\n");
-    fputs(gCmdStr, file);                            
-    sprintf(gCmdStr,"\t\t\t\t\t</Diagnostics>\n");
-    fputs(gCmdStr, file);                             
-    sprintf(gCmdStr,"\t\t\t\t\t<RadioMeasurement>\n");
-    fputs(gCmdStr, file);                         
-    sprintf(gCmdStr,"\t\t\t\t\t\t<disabled/>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t\t</RadioMeasurement>\n");
-    fputs(gCmdStr, file);                    
-    sprintf(gCmdStr,"\t\t\t\t</CCX>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t<sharedKeyNetwork>\n");
-	fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t<userConnection>\n");
-	fputs(gCmdStr, file); 
-
-	if(strncmp(setPSK->keyMgmtType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t<wpa2>\n");
-		fputs(gCmdStr, file);
-	}
-	else if(strncmp(setPSK->keyMgmtType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t<wpa>\n");
-		fputs(gCmdStr, file);
-	}
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t<keyFromProfile>\n");
-	fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<ascii encryptContent=\"true\" >%s</ascii>\n",setPSK->passphrase);
-	fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t</keyFromProfile>\n");
-	fputs(gCmdStr, file);
-
-	if(setPSK->encpType == ENCRYPT_AESCCMP )
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t<encryption>AES</encryption>\n");
-		fputs(gCmdStr, file);
-	}
-	else if (setPSK->encpType == ENCRYPT_TKIP )
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t<encryption>TKIP</encryption>\n");
-		fputs(gCmdStr, file);
-	}
-	if(strncmp(setPSK->keyMgmtType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t</wpa2>\n");
-		fputs(gCmdStr, file);
-	}
-	else if(strncmp(setPSK->keyMgmtType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t</wpa>\n");
-		fputs(gCmdStr, file);
-	}
-	sprintf(gCmdStr,"\t\t\t\t\t</userConnection>\n");
-	fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t</sharedKeyNetwork>\n");
-	fputs(gCmdStr, file); 
-    sprintf(gCmdStr,"\t\t\t</wifiNetwork>\n");
-    fputs(gCmdStr, file);                  
-    sprintf(gCmdStr,"\t\t</globalNetworks>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t<group>\n");
-    fputs(gCmdStr, file);                  
-    sprintf(gCmdStr,"\t\t\t<groupName>Default</groupName>\n");
-    fputs(gCmdStr, file);             
-    sprintf(gCmdStr,"\t\t\t<allowUserToSeeScanlist>true</allowUserToSeeScanlist>\n");
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t\t</group>\n");
-    fputs(gCmdStr, file);              
-    sprintf(gCmdStr,"\t</networks>\n");
-    fputs(gCmdStr, file);
-	
-	CiscoConfigGenerateLowerPart(file);
-  }
-  fclose(file);
-  // sign the xml file
-  sprintf(gCmdStr, "SignProfile.bat c:\\windows\\temp\\tmp.xml c:\\windows\\temp\\tmp1.xml");
-	ret = system(gCmdStr);
-	Sleep(2000);
-	printf("Return value is %d\n",ret);
-  // copy to the destnationfolder
-	sprintf(gCmdStr, "copy /Y c:\\windows\\temp\\tmp1.xml \"c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\configuration.xml\"");
-	ret = system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-	printf("Return value is %d\n",ret);
-
-	Sleep(4000);
-  /* start the service */
-	sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-
-   setPskResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE; 
-}
-
-
 
 /*
  * The function is to set 
@@ -3154,82 +1438,6 @@ int wfaStaSetPSKCiscoSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *res
  * Using Windows WpaSupplicant supplicant  
  * 
  */
-int wfaStaSetPSKWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetPSK_t *setPSK = (caStaSetPSK_t *)caCmdBuf;
-   dutCmdResponse_t *setPskResp = &gGenericResp;
-
-   FILE *file;   
-   file = fopen("c:\\WFA\\WpaSupplicant\\wpa_supplicant.conf", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-	  sprintf(gCmdStr,"ctrl_interface=\\Device\\NPF_%s\n",gnetIf);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"ap_scan=2\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"network={\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tssid=\"%s\"\n",setPSK->ssid);
-	  fputs(gCmdStr, file);
-
-	  if(strncmp(setPSK->keyMgmtType, "wpa2", 4) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=RSN\n");
-		  fputs(gCmdStr, file);
-	  } else if (strncmp(setPSK->keyMgmtType, "wpa", 3) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA\n");
-		  fputs(gCmdStr, file);
-	  }
-
-	  if(setPSK->encpType == ENCRYPT_TKIP)
-	  {
-		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-		  fputs(gCmdStr, file);
-	  }
-	  else if(setPSK->encpType == ENCRYPT_AESCCMP)
-	  {
-		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		  fputs(gCmdStr, file);
-	  }
-
-	  sprintf(gCmdStr,"\tkey_mgmt=WPA-PSK\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tpsk=\"%s\"\n",setPSK->passphrase);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"}\n");
-  	  fputs(gCmdStr, file);
-  }
-  fclose(file);
-
-  /* start the service and stop the service */
-
-	sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-
-
-  printf("Executing %s\n",gCmdStr);
-   system(gCmdStr);
-
-   setPskResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE; 
-}
 
 
 /*
@@ -3245,233 +1453,166 @@ int wfaStaSetPSKZeroConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    dutCmdResponse_t *setPskResp = &gGenericResp;
 
    FILE *file,*tmpfd;
-   char string[256],Interfacename[64];
-   int i;
-//   sprintf(gCmdStr, "wifi_config -limit %s -enable", gnetIf);
-//   system(gCmdStr);
+   char string[256],Interfacename[64], pfile[128], intfile[128];
 
-   sprintf(gCmdStr, "del /F c:\\WFA\\tmp.xml");
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
+
+   sprintf(pfile, "%s\\Temp\\tmp.xlm", sigmaPath);
+   sprintf(gCmdStr, "del /F /Q %s", pfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
    system(gCmdStr);
 
-#ifdef _CYGWIN
-file = fopen("/tmp/tmp.xml", "w+");
-#else
-file = fopen("c:\\WFA\\tmp.xml", "w+");
-#endif
-  /* we create a file for reading and writing */
 
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-    sprintf(gCmdStr,"<?xml version=\"1.0\"?>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<name>%s</name>\n",setPSK->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<SSIDConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<SSID>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<name>%s</name>\n",setPSK->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t</SSID>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t</SSIDConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<connectionType>ESS</connectionType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<connectionMode>auto</connectionMode>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<autoSwitch>true</autoSwitch>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<MSM>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<security>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
-    fputs(gCmdStr, file);
-   if(setPSK->encpType == ENCRYPT_TKIP)
-    {
-    	sprintf(gCmdStr,"\t\t\t<authentication>WPAPSK</authentication>\n");
-    	fputs(gCmdStr, file);
-    	sprintf(gCmdStr,"\t\t\t<encryption>TKIP</encryption>\n");
-    	fputs(gCmdStr, file);
-    }
-   else if(setPSK->encpType == ENCRYPT_AESCCMP)
-    {
-    	sprintf(gCmdStr,"\t\t\t<authentication>WPA2PSK</authentication>\n");
-    	fputs(gCmdStr, file);
-    	sprintf(gCmdStr,"\t\t\t<encryption>AES</encryption>\n");
-    	fputs(gCmdStr, file);
-    }
-    sprintf(gCmdStr,"\t\t\t <useOneX>false</useOneX>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t<sharedKey>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<keyType>passPhrase</keyType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<protected>false</protected>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<keyMaterial>%s</keyMaterial>\n",setPSK->passphrase);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t</sharedKey>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t</security>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t</MSM>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</WLANProfile>\n");
-    fputs(gCmdStr, file);
-  }
-  fclose(file);
-#ifdef _CYGWIN
-   sprintf(gCmdStr, "wifi_config -limit %s -add %s", setPSK->intf,"c:\\\\cygwin\\\\tmp\\\\tmp.xml");
-#else
-//   sprintf(gCmdStr, "wifi_config -limit %s -add %s", gnetIf,"c:\\\\windows\\\\temp\\\\tmp.xml");
-     tmpfd = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-    if(tmpfd == NULL)
-    {
-		printf("\n Error opening the interface file \n");
-    }
-	else
-	{
-	    for(;;)
-	    {
-	        if(fgets(string, 256, tmpfd) == NULL)
-	           break; 
-		}
-		fclose(tmpfd);
+   file = fopen(pfile, "w+");
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
+   /* we create a file for reading and writing */
 
-			  }
+   if(file==NULL) 
+   {
+      DPRINT_ERR(WFA_ERR, "Can't create file.\n");
+      setPskResp->status = STATUS_ERROR;
+      wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
+      *respLen = WFA_TLV_HDR_LEN + 4;
+      
+      return WFA_FAILURE;
+   }
+   else 
+   {
+      sprintf(gCmdStr,"<?xml version=\"1.0\"?>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<name>%s</name>\n",setPSK->ssid);
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<SSIDConfig>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t<SSID>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t<name>%s</name>\n",setPSK->ssid);
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t</SSID>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t</SSIDConfig>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<connectionType>ESS</connectionType>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<connectionMode>auto</connectionMode>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<autoSwitch>true</autoSwitch>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<MSM>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t<security>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
+      fputs(gCmdStr, file);
+      if(setPSK->encpType == ENCRYPT_TKIP)
+      {
+    	    sprintf(gCmdStr,"\t\t\t<authentication>WPAPSK</authentication>\n");
+    	    fputs(gCmdStr, file);
+    	    sprintf(gCmdStr,"\t\t\t<encryption>TKIP</encryption>\n");
+    	    fputs(gCmdStr, file);
+      }
+      else if(setPSK->encpType == ENCRYPT_AESCCMP)
+      {
+    	    sprintf(gCmdStr,"\t\t\t<authentication>WPA2PSK</authentication>\n");
+    	    fputs(gCmdStr, file);
+    	    sprintf(gCmdStr,"\t\t\t<encryption>AES</encryption>\n");
+    	    fputs(gCmdStr, file);
+      }
+      sprintf(gCmdStr,"\t\t\t <useOneX>false</useOneX>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t<sharedKey>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t<keyType>passPhrase</keyType>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t<protected>false</protected>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t<keyMaterial>%s</keyMaterial>\n",setPSK->passphrase);
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t</sharedKey>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t</security>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t</MSM>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"</WLANProfile>\n");
+      fputs(gCmdStr, file);
+   }
+   fclose(file);
 
-	}
 
-   sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all","c:\\WFA\\tmp.xml",&Interfacename[0]);
-#endif
-   //printf("Executing %s\n",gCmdStr);
+   sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+   tmpfd = fopen(intfile, "r");
+   if(tmpfd == NULL)
+   {
+		     DPRINT_ERR(WFA_ERR, "Error opening the interface file \n");
+       setPskResp->status = STATUS_ERROR;
+       wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
+       *respLen = WFA_TLV_HDR_LEN + 4;
+
+       return WFA_FAILURE;
+   }
+   else
+   {
+      for(;;)
+      {
+         if(fgets(string, 256, tmpfd) == NULL)
+            break; 
+      }
+      fclose(tmpfd);
+
+	  if(strncmp(string, "IFNAME", 6) == 0)
+	  {
+         char *str;
+		 str = strtok(string, "\"");
+		 str = strtok(NULL, "\"");
+		 if(str != NULL)
+		 {
+		    strcpy(&Interfacename[0],str);
+		 }
+      }
+   }
+
+   sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all",pfile,&Interfacename[0]);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
    system(gCmdStr);
 
    setPskResp->status = STATUS_COMPLETE;
    wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + 4;
 
-   return TRUE; 
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS; 
 }
-
-int wfaStaSetPSKMarvellSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetPSK_t *setPSK = (caStaSetPSK_t *)caCmdBuf;
-   dutCmdResponse_t *setPskResp = &gGenericResp;
-
-   FILE *file;   
-   char filename[64];
-   
-   printf("Inside wfaStaSetPSKMarvellSupplicant fun...\n");
-
-   // stop the service before adding config file
-
-   	sprintf(gCmdStr, "Taskkill /T /F /IM Mrv8000x.exe");
-	system(gCmdStr);
-	Sleep(1000);
-
-   // Check the file in C:\WFA\MarvellSupplicant
-	strcpy(filename,setPSK->ssid);
-	strcat (filename,"_psk");
-	strcat (filename,".cfg");
-	printf("The marvell config file is : %s",filename);
-
-	sprintf(gCmdStr, "c:\\WFA\\MarvellSupplicant\\%s",filename);
-	file = fopen(gCmdStr,"r");
-	if(file==NULL) 
-	{
-		printf("Error Opening Marvell config file .\n");
-		return 1;
-	}
-	else 
-	{
-		fclose(file);
-
-		// Copy the file into c:\program files\Marvell CBxxx
-   		sprintf(gCmdStr, "copy /Y c:\\WFA\\MarvellSupplicant\\%s \"c:\\Program\ Files\\Marvell\ CB82\\Data.cfg\"",filename);
-		system(gCmdStr);
-	}
-
-   // Start the service
-
-	sprintf(gCmdStr, " start \"Marvell\" /D \"c:\\Program\ Files\\Marvell\ CB82\" Mrv8000x.exe");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-	Sleep(3000);
-
-   setPskResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
-   *respLen = WFA_TLV_HDR_LEN + 4;
-   return TRUE;
-}
-
 
 int wfaStaSetPSK(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
    caStaSetPSK_t *setPSK = (caStaSetPSK_t *)caCmdBuf;
    dutCmdResponse_t *setPskResp = &gGenericResp;
       
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetPSK ...\n");
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", setPSK->intf, setPSK->ssid); 
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 key_mgmt WPA-PSK", setPSK->intf); 
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 psk '\"%s\"'", setPSK->intf, setPSK->passphrase); 
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s enable_network 0", setPSK->intf);
-   system(gCmdStr);
-
-#else 
    switch(geSupplicant)
    {
-	   case eWindowsZeroConfig:
-		   wfaStaSetPSKZeroConfig(len,caCmdBuf,respLen,respBuf);			
-		   break;
-	   case eMarvell:
-		   wfaStaSetPSKMarvellSupplicant(len,caCmdBuf,respLen,respBuf);	
-		   break;
-	   case eWpaSupplicant:
-		   wfaStaSetPSKWpaSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eCiscoSecureClient:
-		   wfaStaSetPSKCiscoSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eOpen1x:
-		   break;
-	   default:
-		   setPskResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;
-		   break;
+	     case eWindowsZeroConfig:
+		    wfaStaSetPSKZeroConfig(len,caCmdBuf,respLen,respBuf);			
+		    break;
+	   
+	     default:
+		    setPskResp->status = STATUS_INVALID;
+		    wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
+		    *respLen = WFA_TLV_HDR_LEN + 4;
+		    break;
    }
-#endif
-   return TRUE; 
+
+
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS; 
 }
 
 
@@ -3484,17 +1625,21 @@ int wfaStaGetInfo(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    dutCmdResponse_t infoResp;
    dutCommand_t *getInfo = (dutCommand_t *)caCmdBuf;
 
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
+
    /*
     * Normally this is called to retrieve the vendor information
     * from a interface, no implement yet
     */
-   sprintf(infoResp.cmdru.info, "interface,%s,vendor,XXX,cardtype,802.11a/b/g", getInfo->intf);
+   sprintf(infoResp.cmdru.info, "interface,%s,vendor,XXX,cardtype,802.11", getInfo->intf);
    
    infoResp.status = STATUS_COMPLETE;
    wfaEncodeTLV(WFA_STA_GET_INFO_RESP_TLV, sizeof(infoResp), (BYTE *)&infoResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + sizeof(infoResp);
 
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 int wfaStaGetTestData(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
@@ -3508,202 +1653,9 @@ int wfaStaGetTestData(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
      * in a new release soon.
      */
 
-    return TRUE;
+    return WFA_SUCCESS;
 }
 
-
-int wfaStaSetEapTTLSCiscoSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEapTTLS_t *setTTLS = (caStaSetEapTTLS_t *)caCmdBuf;
-   char *ifname = setTTLS->intf;
-   dutCmdResponse_t *setEapTtlsResp = &gGenericResp;
-   FILE *file;
-   int ret;
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapTTLSCiscoSupplicant ...\n");
-
-    // stop the service
-   	sprintf(gCmdStr, "sc stop \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-   file = fopen("c:\\windows\\temp\\tmp.xml", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-
-	CiscoConfigGenerateUpperPart(file);
-	CiscoEAPConfigGenerateUpperPart(file,&(setTTLS->ssid[0]));
-
-    sprintf(gCmdStr,"\t\t\t\t\t\t<authenticationMethod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<eapTtls>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<doNotValidateServerCertificate/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<unprotectedIdentityPattern encryptContent=\"true\" >anonymous</unprotectedIdentityPattern>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<enableFastReconnect>\n");
-    fputs(gCmdStr, file);     
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<alwaysAttempt/>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</enableFastReconnect>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<protectedIdentityPattern encryptContent=\"true\" >%s</protectedIdentityPattern>\n",setTTLS->username);
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<passwordSource>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<passwordFromProfile encryptContent=\"true\" >%s</passwordFromProfile>\n",setTTLS->passwd);
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</passwordSource>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<mschapv2/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t</eapTtls>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t</authenticationMethod>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t<collectionBehavior/>\n");
-    fputs(gCmdStr, file);
-
-	CiscoEAPConfigGenerateLowerPart(file,setTTLS->encrptype,setTTLS->keyMgmtType);
-	CiscoConfigGenerateLowerPart(file);
-  }
-  fclose(file);
-
-  // sign the xml file
-  sprintf(gCmdStr, "SignProfile.bat c:\\windows\\temp\\tmp.xml c:\\windows\\temp\\tmp1.xml");
-	system(gCmdStr);
-	Sleep(1000);
-  // copy to the destnationfolder
-	sprintf(gCmdStr, "copy /Y c:\\windows\\temp\\tmp1.xml \"c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\configuration.xml\"");
-	ret=system(gCmdStr);
-	Sleep(1000);
-		printf("Executing %s\n",gCmdStr);
-	printf("Return value is %d\n",ret);
-  /* start the service */
-
-
-	sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-
-   setEapTtlsResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPTTLS_RESP_TLV, 4, (BYTE *)setEapTtlsResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE;
-}
-
-
-/*
- * wfaStaSetEapTTLS():
- *   This is to set
- *   1. ssid
- *   2. username
- *   3. passwd
- *   4. encrypType - tkip or aes-ccmp
- *   5. keyManagementType - wpa or wpa2
- *   6. trustedRootCA
- */
-int wfaStaSetEapTTLSWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEapTTLS_t *setTTLS = (caStaSetEapTTLS_t *)caCmdBuf;
-   char *ifname = setTTLS->intf;
-   dutCmdResponse_t *setEapTtlsResp = &gGenericResp;
-   FILE *file;
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapTLSWpaSupplicant ...\n");
-
-   file = fopen("c:\\WFA\\WpaSupplicant\\wpa_supplicant.conf", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-	  sprintf(gCmdStr,"ctrl_interface=\\Device\\NPF_%s\n",gnetIf);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"ap_scan=2\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"network={\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tssid=\"%s\"\n",setTTLS->ssid);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tkey_mgmt=WPA-EAP\n");
-	  fputs(gCmdStr, file);
-	  
-	  if(strncmp(setTTLS->keyMgmtType, "wpa2", 4) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA2\n");
-		  fputs(gCmdStr, file);
-//		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-//		  fputs(gCmdStr, file);
-	  } else if (strncmp(setTTLS->keyMgmtType, "wpa", 3) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA\n");
-		  fputs(gCmdStr, file);
-//		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-//		  fputs(gCmdStr, file);
-	  }
-
-	  if((strncmp(setTTLS->encrptype, "TKIP",4) == 0) || (strncmp(setTTLS->encrptype, "tkip",4) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-		  fputs(gCmdStr, file);
-	  }
-	  else if((strncmp(setTTLS->encrptype, "AES-CCMP",8) == 0) || (strncmp(setTTLS->encrptype, "aes-ccmp",8) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		  fputs(gCmdStr, file);
-	  }
-
-	  sprintf(gCmdStr,"\teap=TTLS\n");
-	  fputs(gCmdStr, file);
-
-// For WAP2 Test Plan 
-
-	  sprintf(gCmdStr,"\tphase2=\"auth=MSCHAPV2\"\n");
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tca_cert=\"%s.pem\"\n",setTTLS->trustedRootCA);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tanonymous_identity=\"anonymous\"\n");
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tidentity=\"%s\"\n",setTTLS->username);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tpassword=\"%s\"\n",setTTLS->passwd);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"}\n");
-  	  fputs(gCmdStr, file);
-  }
-  fclose(file);
-
-  /* stop the service and start the service */
-   sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-   system(gCmdStr);
-   sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-   system(gCmdStr);
-   printf("Executing %s\n",gCmdStr);
-
-   setEapTtlsResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPTTLS_RESP_TLV, 4, (BYTE *)setEapTtlsResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE;
-}
 
 /*
  * wfaStaSetEapTTLS():
@@ -3721,167 +1673,29 @@ int wfaStaSetEapTTLS(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    char *ifname = setTTLS->intf;
    dutCmdResponse_t *setEapTtlsResp = &gGenericResp;
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   sprintf(gCmdStr, "wpa_cli -i %s disable_network 0", ifname);
-   system(gCmdStr);
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", ifname, setTTLS->ssid);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 identity '\"%s\"'", ifname, setTTLS->username);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 password '\"%s\"'", ifname, setTTLS->passwd);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 key_mgmt WPA-EAP", ifname);
-   system(gCmdStr);
-
-/* This may not need to set. if it is not set, default to take all */
-//   sprintf(cmdStr, "wpa_cli -i %s set_network 0 pairwise '\"%s\"", ifname, setTTLS->encrptype);
-//   system(cmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 eap TTLS", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ca_cert '\"%s/%s\"'", ifname, CERTIFICATES_PATH, setTTLS->trustedRootCA);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 proto WPA", ifname);
-   system(gCmdStr);
-
-//   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 anonymous_identity '\"anonymous\"'", ifname);
-//   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 phase2 '\"auth=MSCHAPV2\"'", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s enable_network 0", ifname);
-   system(gCmdStr);
-
-   setEapTtlsResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPTTLS_RESP_TLV, 4, (BYTE *)setEapTtlsResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-#else
-  switch(geSupplicant)
+   switch(geSupplicant)
    {
-	   case eWindowsZeroConfig:
-		   setEapTtlsResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPTTLS_RESP_TLV, 4, (BYTE *)setEapTtlsResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;			
-		   break;
-	   case eMarvell:
-		   break;
-	   case eWpaSupplicant:
-		   wfaStaSetEapTTLSWpaSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eCiscoSecureClient:
-		   wfaStaSetEapTTLSCiscoSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eOpen1x:
-		   break;
-	   default:
-		   setEapTtlsResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setEapTtlsResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;
-		   break;
+	     case eWindowsZeroConfig:
+		    setEapTtlsResp->status = STATUS_INVALID;
+		    wfaEncodeTLV(WFA_STA_SET_EAPTTLS_RESP_TLV, 4, (BYTE *)setEapTtlsResp, respBuf);   
+		    *respLen = WFA_TLV_HDR_LEN + 4;			
+		    break;
+	 
+	     default:
+		    setEapTtlsResp->status = STATUS_INVALID;
+		    wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setEapTtlsResp, respBuf);   
+		    *respLen = WFA_TLV_HDR_LEN + 4;
+		    break;
    }
-#endif
-   return TRUE;
+
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 
-int wfaStaSetEapSIMWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEapSIM_t *setSIM = (caStaSetEapSIM_t *)caCmdBuf;
-   char *ifname = setSIM->intf;
-   dutCmdResponse_t *setEapSimResp = &gGenericResp;
-   FILE *file;
-
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapSIMWpaSupplicant ...\n");
-
-   file = fopen("c:\\WFA\\WpaSupplicant\\wpa_supplicant.conf", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-	  sprintf(gCmdStr,"ctrl_interface=\\Device\\NPF_%s\n",gnetIf);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"ap_scan=2\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"network={\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tssid=\"%s\"\n",setSIM->ssid);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tkey_mgmt=WPA-EAP\n");
-	  fputs(gCmdStr, file);
-
-	  if(strncmp(setSIM->keyMgmtType, "wpa2", 4) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA2\n");
-		  fputs(gCmdStr, file);
-	//	  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		//  fputs(gCmdStr, file);
-	  } else if (strncmp(setSIM->keyMgmtType, "wpa", 3) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA\n");
-		  fputs(gCmdStr, file);
-//		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-//		  fputs(gCmdStr, file);
-	  }
-
-	  if((strncmp(setSIM->encrptype, "TKIP",4) == 0) || (strncmp(setSIM->encrptype, "tkip",4) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-		  fputs(gCmdStr, file);
-	  }
-	  else if((strncmp(setSIM->encrptype, "AES-CCMP",8) == 0) || (strncmp(setSIM->encrptype, "aes-ccmp",8) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		  fputs(gCmdStr, file);
-	  }
-
-	  sprintf(gCmdStr,"\teap=SIM\n");
-	  fputs(gCmdStr, file);
-
-// For WAP2 Test Plan 
-
-	  sprintf(gCmdStr,"\tidentity=\"%s\"\n",setSIM->username);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tpassword=\"%s\"\n",setSIM->passwd);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"}\n");
-  	  fputs(gCmdStr, file);
-  }
-  fclose(file);
-
-  /* start the service and stop the service */
-
-	sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-    printf("Executing %s\n",gCmdStr);
-    system(gCmdStr);
-
-	setEapSimResp->status = STATUS_COMPLETE;
-	wfaEncodeTLV(WFA_STA_SET_EAPSIM_RESP_TLV, 4, (BYTE *)setEapSimResp, respBuf);   
-	*respLen = WFA_TLV_HDR_LEN + 4;
-
-	return TRUE;
-}
 /*
  * wfaStaSetEapSIM():
  *   This is to set
@@ -3897,69 +1711,26 @@ int wfaStaSetEapSIM(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    char *ifname = setSIM->intf;
    dutCmdResponse_t *setEapSimResp = &gGenericResp;
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   sprintf(gCmdStr, "wpa_cli -i %s disable_network 0", ifname);
-   system(gCmdStr);
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", ifname, setSIM->ssid);
-   system(gCmdStr);
-
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 identity '\"%s\"'", ifname, setSIM->username);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 key_mgmt WPA-EAP", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 pairwise '\"%s\"'", ifname, setSIM->encrptype);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 eap SIM", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 proto WPA", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s enable_network 0", ifname);
-   system(gCmdStr);
-
-   setEapSimResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPSIM_RESP_TLV, 4, (BYTE *)setEapSimResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-#else
    switch(geSupplicant)
    {
-	   case eWindowsZeroConfig:
-		   setEapSimResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPSIM_RESP_TLV, 4, (BYTE *)setEapSimResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;			
-		   break;
-	   case eMarvell:
-		   setEapSimResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPSIM_RESP_TLV, 4, (BYTE *)setEapSimResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;	
-		   break;
-	   case eWpaSupplicant:
-		   wfaStaSetEapSIMWpaSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eCiscoSecureClient:
-		   setEapSimResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPSIM_RESP_TLV, 4, (BYTE *)setEapSimResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;	
-		   break;
-	   case eOpen1x:
-		   //wfaStaSetEapSIMOpen1x(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   default:
-		   setEapSimResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPSIM_RESP_TLV, 4, (BYTE *)setEapSimResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;
-		   break;
+	     case eWindowsZeroConfig:
+		    setEapSimResp->status = STATUS_INVALID;
+		    wfaEncodeTLV(WFA_STA_SET_EAPSIM_RESP_TLV, 4, (BYTE *)setEapSimResp, respBuf);   
+		    *respLen = WFA_TLV_HDR_LEN + 4;			
+		    break;
+	   
+	     default:
+		    setEapSimResp->status = STATUS_INVALID;
+		    wfaEncodeTLV(WFA_STA_SET_EAPSIM_RESP_TLV, 4, (BYTE *)setEapSimResp, respBuf);   
+		    *respLen = WFA_TLV_HDR_LEN + 4;
+		    break;
    }
-#endif
 
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
 
-   return TRUE;
+   return WFA_SUCCESS;
 }
 
 /*
@@ -3981,771 +1752,230 @@ int wfaStaSetPEAPZeroConfig(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf
    dutCmdResponse_t *setPeapResp = &gGenericResp;
 
    FILE *file,*tmpfd;
-   char string[256],Interfacename[64];
-   int i;
+   char string[256],Interfacename[64], pfile[128], intfile[128];
 
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetPEAP ...\n");
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
-
-//   sprintf(gCmdStr, "wifi_config -limit %s -enable", gnetIf);
-//   system(gCmdStr);
-
-   sprintf(gCmdStr, "del /F c:\\WFA\\tmp.xml");
+   sprintf(pfile, "%s\\Temp\\tmp.xml", sigmaPath);
+   sprintf(gCmdStr, "del /F /Q %s", pfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
    system(gCmdStr);
 
-	#ifdef _CYGWIN
-	file = fopen("/tmp/tmp.xml", "w+");
-	#else
-	file = fopen("c:\\WFA\\tmp.xml", "w+");
-	#endif
+	  file = fopen(pfile, "w+");
 
+   /* we create a file for reading and writing */
+   if(file==NULL) 
+   {
+      DPRINT_ERR(WFA_ERR, "Can't create file.\n");
+      setPeapResp->status = STATUS_ERROR;
+      wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);
+      *respLen = WFA_TLV_HDR_LEN + 4;
 
- /* we create a file for reading and writing */
+      return WFA_FAILURE;
+   }
+   else 
+   {
+      sprintf(gCmdStr,"<?xml version=\"1.0\"?>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<name>%s</name>\n",setPEAP->ssid);
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<SSIDConfig>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t<SSID>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t<name>%s</name>\n",setPEAP->ssid);
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t</SSID>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t<nonBroadcast>false</nonBroadcast>\n");
+      fputs(gCmdStr, file);	
+      sprintf(gCmdStr,"\t</SSIDConfig>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<connectionType>ESS</connectionType>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<connectionMode>auto</connectionMode>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<autoSwitch>true</autoSwitch>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t<MSM>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t<security>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
+      fputs(gCmdStr, file);
 
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-    sprintf(gCmdStr,"<?xml version=\"1.0\"?>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<name>%s</name>\n",setPEAP->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<SSIDConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<SSID>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<name>%s</name>\n",setPEAP->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t</SSID>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<nonBroadcast>false</nonBroadcast>\n");
-    fputs(gCmdStr, file);	
-    sprintf(gCmdStr,"\t</SSIDConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<connectionType>ESS</connectionType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<connectionMode>auto</connectionMode>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<autoSwitch>true</autoSwitch>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<MSM>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<security>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
-    fputs(gCmdStr, file);
-
-	if((strcmp(setPEAP->keyMgmtType, "WPA2") == 0) || (strcmp(setPEAP->keyMgmtType, "wpa2") == 0))
-	{
-    	sprintf(gCmdStr,"\t\t\t\t<authentication>WPA2</authentication>\n");
-    	fputs(gCmdStr, file);
-    	sprintf(gCmdStr,"\t\t\t\t<encryption>AES</encryption>\n");
-    	fputs(gCmdStr, file);
-
-	}
-	else if((strcmp(setPEAP->keyMgmtType, "WPA") == 0) || (strcmp(setPEAP->keyMgmtType, "wpa") == 0))
-	{
-    	sprintf(gCmdStr,"\t\t\t\t<authentication>WPA</authentication>\n");
-    	fputs(gCmdStr, file);
-    	sprintf(gCmdStr,"\t\t\t\t<encryption>TKIP</encryption>\n");
-    	fputs(gCmdStr, file);
-
-	}
+      if((strcmp(setPEAP->keyMgmtType, "WPA2") == 0) || (strcmp(setPEAP->keyMgmtType, "wpa2") == 0))
+      {
+          sprintf(gCmdStr,"\t\t\t\t<authentication>WPA2</authentication>\n");
+          fputs(gCmdStr, file);
+          sprintf(gCmdStr,"\t\t\t\t<encryption>AES</encryption>\n");
+          fputs(gCmdStr, file);
+      }
+      else if((strcmp(setPEAP->keyMgmtType, "WPA") == 0) || (strcmp(setPEAP->keyMgmtType, "wpa") == 0))
+      {
+          sprintf(gCmdStr,"\t\t\t\t<authentication>WPA</authentication>\n");
+          fputs(gCmdStr, file);
+          sprintf(gCmdStr,"\t\t\t\t<encryption>TKIP</encryption>\n");
+          fputs(gCmdStr, file);
+	  }
 
 	
-//	if((strcmp(setPEAP->encrptype, "TKIP") == 0) || (strcmp(setPEAP->encrptype, "tkip") == 0))
-//	{
- //   	sprintf(gCmdStr,"\t\t\t\t<encryption>TKIP</encryption>\n");
- //   	fputs(gCmdStr, file);
-//	}
-//	else if((strcmp(setPEAP->encrptype, "AES-CCMP") == 0) || (strcmp(setPEAP->encrptype, "aes-ccmp") == 0))
-//	{
-//    	sprintf(gCmdStr,"\t\t\t\t<encryption>AES</encryption>\n");
-//    	fputs(gCmdStr, file);
-//	}
-    sprintf(gCmdStr,"\t\t\t\t<useOneX>true</useOneX>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
-    fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t<useOneX>true</useOneX>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
+      fputs(gCmdStr, file);
 
-    sprintf(gCmdStr,"\t\t\t<OneX xmlns=\"http://www.microsoft.com/networking/OneX/v1\">\n");
-    fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t<OneX xmlns=\"http://www.microsoft.com/networking/OneX/v1\">\n");
+      fputs(gCmdStr, file);
 
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<cacheUserData>true</cacheUserData>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<authMode>machineOrUser</authMode>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<singleSignOn>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<type>preLogon</type>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<maxDelay>10</maxDelay>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<allowAdditionalDialogs>true</allowAdditionalDialogs>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<userBasedVirtualLan>false</userBasedVirtualLan>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</singleSignOn>\n");
-    fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<cacheUserData>true</cacheUserData>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<authMode>machineOrUser</authMode>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<singleSignOn>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<type>preLogon</type>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<maxDelay>10</maxDelay>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<allowAdditionalDialogs>true</allowAdditionalDialogs>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<userBasedVirtualLan>false</userBasedVirtualLan>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</singleSignOn>\n");
+      fputs(gCmdStr, file);
 
-	sprintf(gCmdStr,"\t\t\t\t<EAPConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<EapHostConfig xmlns=\"http://www.microsoft.com/provisioning/EapHostConfig\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t<EapMethod>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t<Type xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">25</Type>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<VendorId xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</VendorId>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<VendorType xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</VendorType>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<AuthorId xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</AuthorId>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t</EapMethod>\n");
-    fputs(gCmdStr, file);
-	//sprintf(gCmdStr,"\t\t\t\t\t\t<ConfigBlob>010000003E000000010000000000000001000000150000001700000000000000000001000000170000001A00000001000000000000000000000000000000</ConfigBlob>\n");
-    //fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t<EAPConfig>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t<EapHostConfig xmlns=\"http://www.microsoft.com/provisioning/EapHostConfig\">\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t<EapMethod>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t<Type xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">25</Type>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t\t<VendorId xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</VendorId>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t\t<VendorType xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</VendorType>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t\t<AuthorId xmlns=\"http://www.microsoft.com/provisioning/EapCommon\">0</AuthorId>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t\t\t</EapMethod>\n");
+      fputs(gCmdStr, file);
     
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Config xmlns=\"http://www.microsoft.com/provisioning/EapHostConfig\">\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Eap xmlns=\"http://www.microsoft.com/provisioning/BaseEapConnectionPropertiesV1\">\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Type>25</Type>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<EapType xmlns=\"http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV1\">\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<ServerValidation>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<DisableUserPromptForServerValidation>false</DisableUserPromptForServerValidation>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<ServerNames></ServerNames>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</ServerValidation>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<FastReconnect>false</FastReconnect>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<InnerEapOptional>false</InnerEapOptional>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Eap xmlns=\"http://www.microsoft.com/provisioning/BaseEapConnectionPropertiesV1\">\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Type>26</Type>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<EapType xmlns=\"http://www.microsoft.com/provisioning/MsChapV2ConnectionPropertiesV1\">\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<UseWinLogonCredentials>false</UseWinLogonCredentials>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</EapType>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</Eap>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<EnableQuarantineChecks>false</EnableQuarantineChecks>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<RequireCryptoBinding>false</RequireCryptoBinding>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<PeapExtensions>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<PerformServerValidation xmlns=\"http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV2\">false</PerformServerValidation>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<AcceptServerName xmlns=\"http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV2\">false</AcceptServerName>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</PeapExtensions>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</EapType>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</Eap>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</Config>\n");
-    fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Config xmlns=\"http://www.microsoft.com/provisioning/EapHostConfig\">\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Eap xmlns=\"http://www.microsoft.com/provisioning/BaseEapConnectionPropertiesV1\">\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Type>25</Type>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<EapType xmlns=\"http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV1\">\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<ServerValidation>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<DisableUserPromptForServerValidation>false</DisableUserPromptForServerValidation>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<ServerNames></ServerNames>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</ServerValidation>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<FastReconnect>false</FastReconnect>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<InnerEapOptional>false</InnerEapOptional>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Eap xmlns=\"http://www.microsoft.com/provisioning/BaseEapConnectionPropertiesV1\">\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<Type>26</Type>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<EapType xmlns=\"http://www.microsoft.com/provisioning/MsChapV2ConnectionPropertiesV1\">\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<UseWinLogonCredentials>false</UseWinLogonCredentials>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</EapType>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</Eap>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<EnableQuarantineChecks>false</EnableQuarantineChecks>\n");
+      fputs(gCmdStr, file);
+     	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<RequireCryptoBinding>false</RequireCryptoBinding>\n");
+      fputs(gCmdStr, file);
+     	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<PeapExtensions>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<PerformServerValidation xmlns=\"http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV2\">false</PerformServerValidation>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<AcceptServerName xmlns=\"http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV2\">false</AcceptServerName>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</PeapExtensions>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</EapType>\n");
+      fputs(gCmdStr, file);
+     	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</Eap>\n");
+      fputs(gCmdStr, file);
+	     sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</Config>\n");
+      fputs(gCmdStr, file);
 												
-	sprintf(gCmdStr,"\t\t\t\t\t</EapHostConfig>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t</EAPConfig>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t</OneX>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t</security>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t</MSM>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</WLANProfile>\n");
-    fputs(gCmdStr, file);
-
+	     sprintf(gCmdStr,"\t\t\t\t\t</EapHostConfig>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t\t\t</EAPConfig>\n");
+      fputs(gCmdStr, file);
+     	sprintf(gCmdStr,"\t\t\t</OneX>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t\t</security>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"\t</MSM>\n");
+      fputs(gCmdStr, file);
+      sprintf(gCmdStr,"</WLANProfile>\n");
+      fputs(gCmdStr, file);
   }
   fclose(file);
-#ifdef _CYGWIN
-   sprintf(gCmdStr, "wifi_config -limit %s -add %s", setPSK->intf,"c:\\\\cygwin\\\\tmp\\\\tmp.xml");
-#else
-   //sprintf(gCmdStr, "wifi_config -limit %s -add %s", gnetIf,"c:\\\\windows\\\\temp\\\\tmp.xml");
 
+  sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+  tmpfd = fopen(intfile, "r");
+  if(tmpfd == NULL)
+  {
+	   	DPRINT_ERR(WFA_ERR, "Error opening the interface file \n");
+     setPeapResp->status = STATUS_ERROR;
+     wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);
+     *respLen = WFA_TLV_HDR_LEN + 4;
 
-     tmpfd = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-    if(tmpfd == NULL)
-    {
-		printf("\n Error opening the interface file \n");
-    }
-	else
-	{
-	    for(;;)
+     return WFA_FAILURE;
+  }
+  else
+  {
+     for(;;)
+     {
+        if(fgets(string, 256, tmpfd) == NULL)
+            break; 
+     }
+	 fclose(tmpfd);
+
+	 if(strncmp(string, "IFNAME", 6) == 0)
+	 {
+	    char *str;
+	    str = strtok(string, "\"");
+	    str = strtok(NULL, "\"");
+	    if(str != NULL)
 	    {
-	        if(fgets(string, 256, tmpfd) == NULL)
-	           break; 
-		}
-		fclose(tmpfd);
+	        strcpy(&Interfacename[0],str);
+	    }
+     }
+  }
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
-
-			  }
-
-	}
-
-   sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all","c:\\WFA\\tmp.xml",&Interfacename[0]);
-
-#endif
-   printf("Executing %s\n",gCmdStr);
-   system(gCmdStr);
+  sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all",pfile,&Interfacename[0]);
+  DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+  system(gCmdStr);
 
 
-   setPeapResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
+  setPeapResp->status = STATUS_COMPLETE;
+  wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);
+  *respLen = WFA_TLV_HDR_LEN + 4;
 
-   return TRUE;
+  DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+  return WFA_SUCCESS;
 }
 
-int wfaStaSetPEAPCiscoSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEapPEAP_t *setPEAP = (caStaSetEapPEAP_t *)caCmdBuf;
-   char *ifname = setPEAP->intf;
-   dutCmdResponse_t *setPeapResp = &gGenericResp;
-   FILE *file;
-	int ret;
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetPEAPCiscoSupplicant ...\n");
-
-   // stop the service
-   	sprintf(gCmdStr, "sc stop \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-/*
-
-   file = fopen("c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\internalConfiguration.xml", "w+");
-  // we create a empty file for reading and writing 
-  
-  if(file==NULL)
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-	  
-	  sprintf(gCmdStr,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"<internalConfigurationData>\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"<group>\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"<groupName>Local networks</groupName>\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"<network>\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"<networkName>%s</networkName>n",setPEAP->ssid);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"<credentials>n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"<credential>01000000d08c9ddf0115d1118c7a00c04fc297eb01000000a3568b37ba115e408e3023914e2eed9b040000000a00000062006c006f006200000003660000a800000010000000fd4caa430f73b24f98413cda9f3e87f90000000004800000a000000010000000e7830c805627b3037667dd34270a330128000000395bc1b16e244630e48551e5e2cefc378aa8aa1799fd9b1edadfea24b02e52447369427cba3bbce214000000d63204fccdeaa4d831043d0e4b2cc9ddd939f2f801d1cfc92e</credential>n");
-	  fputs(gCmdStr, file);
-	  if ( setPEAP->peapVersion == 0 )
-	  {
-		  sprintf(gCmdStr,"<credential>01000000d08c9ddf0115d1118c7a00c04fc297eb01000000a3568b37ba115e408e3023914e2eed9b040000000a00000062006c006f006200000003660000a800000010000000f7c21a2dcac8ffb4e8eaf58623db8b900000000004800000a00000001000000065281a249083d700d2ca713c9b51e0f828000000bd0d8fa0ee600277d77fae28591189082ab3ddbe1149f954eec717365c39ced67b96e39a17050bd714000000f5f8158cacf2f930098a24a1a9df8f02ad6231c70169d922f8</credential>n");
-		  fputs(gCmdStr, file);
-	  }
-	  else
-	  {
-		  sprintf(gCmdStr,"<credential>01000000d08c9ddf0115d1118c7a00c04fc297eb01000000a3568b37ba115e408e3023914e2eed9b040000000a00000062006c006f006200000003660000a800000010000000f7c21a2dcac8ffb4e8eaf58623db8b900000000004800000a00000001000000065281a249083d700d2ca713c9b51e0f828000000bd0d8fa0ee600277d77fae28591189082ab3ddbe1149f954eec717365c39ced67b96e39a17050bd714000000f5f8158cacf2f930098a24a1a9df8f02ad6231c70169d922f8</credential>n");
-		  fputs(gCmdStr, file);
-	  }
-	  sprintf(gCmdStr,"</credentials>n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"</network>n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"</group>n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"</internalConfigurationData>n");
-	  fputs(gCmdStr, file);
-  }
-
-  fclose(file);
-*/
-	file = fopen("c:\\windows\\temp\\tmp.xml", "w+");
-
-   //file = fopen("c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\userConfiguration.xml", "w+");
-  /* we create a empty file for reading and writing */
-
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-/*
-    sprintf(gCmdStr,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<UserConfiguration major_version=\"5\" minor_version=\"1\" development_version=\"1\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<networks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<group>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<groupName>Default</groupName>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<allowUserToSeeScanlist>true</allowUserToSeeScanlist>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<wifiNetwork>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"<displayName>%s</displayName>\n",setPEAP->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<connectionTimeout>40</connectionTimeout>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<ssid>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<name>%s</name>\n",setPEAP->ssid);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</ssid>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<associationTimeout>3</associationTimeout>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<authenticationNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<userAuthentication>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<collectionBehavior>\n");
-    fputs(gCmdStr, file);
-	// if username and password
-	// else certificate
-	if ( setPEAP->peapVersion == 0 )
-	{
-		sprintf(gCmdStr,"<withPassword>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<cachePasswordFromUser>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<forever/>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</cachePasswordFromUser>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</withPassword>\n");
-		fputs(gCmdStr, file);
-	}
-	else
-	{
-		sprintf(gCmdStr,"<withToken>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<cachePinForTokenFromUser>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<forever/>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</withToken>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</cachePinForTokenFromUser>\n");
-		fputs(gCmdStr, file);
-	}
-    sprintf(gCmdStr,"</collectionBehavior>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<authenticationMethod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<eapPeap>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<doNotValidateServerCertificate/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<unprotectedIdentityPattern encryptContent=\"true\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<EncryptedData xmlns=\"http://www.w3.org/2001/04/xmlenc#\" Type=\"http://www.w3.org/2001/04/xmlenc#Content\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<CipherData>\n");
-    fputs(gCmdStr, file);
-	if ( setPEAP->peapVersion == 0 )
-	{
-		sprintf(gCmdStr,"<CipherValue>Og5DSocVJ5+HnskyOPsahensIoMEEC1zf+nzg2jySVA=</CipherValue>\n");
-	}
-	else
-	{
-		sprintf(gCmdStr,"<CipherValue>NIxzhb8ccY13XzRT3q0GUXVXZMOj+iwtFt8CZrgQqIw=</CipherValue>\n");		
-	}
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</CipherData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</EncryptedData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</unprotectedIdentityPattern>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<enableFastReconnect>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<alwaysAttempt/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</enableFastReconnect>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<authMethods>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<builtinMethods>\n");
-    fputs(gCmdStr, file);
-	if ( setPEAP->peapVersion == 0 )
-	{
-		sprintf(gCmdStr,"<authenticateWithPassword>\n");
-	}
-	else
-	{
-		sprintf(gCmdStr,"<authenticateWithToken>\n");
-	}
-	fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<protectedIdentityPattern encryptContent=\"true\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<EncryptedData xmlns=\"http://www.w3.org/2001/04/xmlenc#\" Type=\"http://www.w3.org/2001/04/xmlenc#Content\">\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<CipherData>\n");
-    fputs(gCmdStr, file);
-	if ( setPEAP->peapVersion == 0 )
-	{
-		sprintf(gCmdStr,"<CipherValue>fT6aOmryoHPtCk+LVL2g1f2FowLQ1yqjh8p6gzY44Ug=</CipherValue>\n");
-	}
-	else
-	{
-		sprintf(gCmdStr,"<CipherValue>I81l3Y3PbrpJqSUXx34eOR/W0gO7KQrxpZ8wk4X2WAA=</CipherValue>\n");
-	}
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</CipherData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</EncryptedData>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</protectedIdentityPattern>\n");
-    fputs(gCmdStr, file);
-	if ( setPEAP->peapVersion == 0 )
-	{
-		sprintf(gCmdStr,"<passwordSource>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<passwordFromUser/>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</passwordSource>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<methods>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<eapMschapv2/>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</methods>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</authenticateWithPassword>\n");
-		fputs(gCmdStr, file);
-	}
-	else
-	{
-		sprintf(gCmdStr,"<tokenSource>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<passwordFromOtherToken/>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</tokenSource>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<methods>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"<eapGtc/>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</methods>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"</authenticateWithToken>\n");
-		fputs(gCmdStr, file);
-	}
-    sprintf(gCmdStr,"</builtinMethods>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</authMethods>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</eapPeap>\n");
-    fputs(gCmdStr, file);	
-    sprintf(gCmdStr,"</authenticationMethod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</userAuthentication>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<setting802.1x>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<authPeriod>30</authPeriod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<heldPeriod>60</heldPeriod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<startPeriod>30</startPeriod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<maxStart>3</maxStart>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</setting802.1x>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"<associationMode>\n");
-    fputs(gCmdStr, file);
-	if(strncmp(setPEAP->keyMgmtType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"<wpa2>\n");
-		fputs(gCmdStr, file);
-	}
-	else if (strncmp(setPEAP->keyMgmtType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"<wpa>\n");
-		fputs(gCmdStr, file);
-	}
-	if((strcmp(setPEAP->encrptype, "TKIP") == 0) || (strcmp(setPEAP->encrptype, "tkip") == 0))
-	{
-		sprintf(gCmdStr,"<encryption>TKIP</encryption>\n");
-		fputs(gCmdStr, file);
-	}
-	else if((strcmp(setPEAP->encrptype, "AES-CCMP") == 0) || (strcmp(setPEAP->encrptype, "aes-ccmp") == 0))
-	{
-		sprintf(gCmdStr,"<encryption>AES</encryption>\n");
-		fputs(gCmdStr, file);
-	}
-	if(strncmp(setPEAP->keyMgmtType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"</wpa2>\n");
-		fputs(gCmdStr, file);
-	}
-	else if (strncmp(setPEAP->keyMgmtType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"</wpa>\n");
-		fputs(gCmdStr, file);
-	}
-    sprintf(gCmdStr,"</associationMode>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</authenticationNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</wifiNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</group>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</networks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"</UserConfiguration>\n");
-    fputs(gCmdStr, file);
-	*/
-	CiscoConfigGenerateUpperPart(file);
-	CiscoEAPConfigGenerateUpperPart(file,setPEAP->ssid);
-
-    sprintf(gCmdStr,"\t\t\t\t\t\t<authenticationMethod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<eapPeap>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<doNotValidateServerCertificate/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<unprotectedIdentityPattern encryptContent=\"true\" >anonymous</unprotectedIdentityPattern>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<enableFastReconnect>\n");
-    fputs(gCmdStr, file);     
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<alwaysAttempt/>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</enableFastReconnect>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<authMethods>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<builtinMethods>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t<authenticateWithPassword>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<protectedIdentityPattern encryptContent=\"true\" >%s</protectedIdentityPattern>\n",setPEAP->username);
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<passwordSource>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t\t<passwordFromProfile encryptContent=\"true\" >%s</passwordFromProfile>\n",setPEAP->passwd);
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t</passwordSource>\n");
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<methods>\n");
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t\t<eapMschapv2/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t</methods>\n");
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t</authenticateWithPassword>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t</builtinMethods>\n");
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</authMethods>\n");
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t</eapPeap>\n");
-    fputs(gCmdStr, file); 	
-	sprintf(gCmdStr,"\t\t\t\t\t\t</authenticationMethod>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t<collectionBehavior/>\n");
-	fputs(gCmdStr, file);
-	CiscoEAPConfigGenerateLowerPart(file,setPEAP->encrptype,setPEAP->keyMgmtType);
-	CiscoConfigGenerateLowerPart(file);
-
-  }
-  fclose(file);
-
-    // sign the xml file
-  sprintf(gCmdStr, "SignProfile.bat c:\\windows\\temp\\tmp.xml c:\\windows\\temp\\tmp1.xml");
-	system(gCmdStr);
-	Sleep(1000);
-  // copy to the destnationfolder
-	sprintf(gCmdStr, "copy /Y c:\\windows\\temp\\tmp1.xml \"c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\configuration.xml\"");
-	ret=system(gCmdStr);
-	Sleep(1000);
-	printf("Executing %s\n",gCmdStr);
-	printf("Return value is %d\n",ret);
-  /* start the service */
-
-	sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-   setPeapResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE;
-}
-
-/*
- * wfaStaSetPEAP(): For ZeroConfig
- *   This is to set
- *   1. ssid
- *   2. user name
- *   3. passwd
- *   4. encryType - tkip or aes-ccmp
- *   5. keyMgmtType - wpa or wpa2
- *   6. trustedRootCA
- *   7. innerEAP
- *   8. peapVersion
- */
-int wfaStaSetPEAPWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEapPEAP_t *setPEAP = (caStaSetEapPEAP_t *)caCmdBuf;
-   char *ifname = setPEAP->intf;
-   dutCmdResponse_t *setPeapResp = &gGenericResp;
-   FILE *file;
-
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetPEAPWpaSupplicant ...\n");
-
-
-   file = fopen("c:\\WFA\\WpaSupplicant\\wpa_supplicant.conf", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {
-	  sprintf(gCmdStr,"ctrl_interface=\\Device\\NPF_%s\n",gnetIf);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"ap_scan=2\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"network={\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tssid=\"%s\"\n",setPEAP->ssid);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tkey_mgmt=WPA-EAP\n");
-	  fputs(gCmdStr, file);
-
-	  if(strncmp(setPEAP->keyMgmtType, "wpa2", 4) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA2\n");
-		  fputs(gCmdStr, file);
-		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		  fputs(gCmdStr, file);
-	  } else if (strncmp(setPEAP->keyMgmtType, "wpa", 3) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA\n");
-		  fputs(gCmdStr, file);
-		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-		  fputs(gCmdStr, file);
-	  }
-
-
-    printf("Encryptioin type received = %s .\n",setPEAP->encrptype);
-	  if((strncmp(setPEAP->encrptype, "TKIP",4) == 0) || (strncmp(setPEAP->encrptype, "tkip",4) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-		  fputs(gCmdStr, file);
-	  }
-	  else if((strncmp(setPEAP->encrptype, "AES-CCMP",8) == 0) || (strncmp(setPEAP->encrptype, "aes-ccmp",8) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		  fputs(gCmdStr, file);
-	  }
-	  
-	  sprintf(gCmdStr,"\teap=PEAP\n");
-	  fputs(gCmdStr, file);
-
-
-	  if ( setPEAP->peapVersion == 0 )
-	  {
-		  sprintf(gCmdStr,"\tphase1=\"peapver=0\"\n");
-		  fputs(gCmdStr, file);
-		  sprintf(gCmdStr,"\tphase2=\"auth=MSCHAPV2\"\n");
-		  fputs(gCmdStr, file);
-
-		// For WAP2 Test Plan 
-
-
-		  sprintf(gCmdStr,"\tca_cert=\"%s.pem\"\n",setPEAP->trustedRootCA);
-		  fputs(gCmdStr, file);
-
-//		  sprintf(gCmdStr,"\tca_cert=\"certnew.pem\"\n");
-//		  fputs(gCmdStr, file);
-
-		  sprintf(gCmdStr,"\tidentity=\"%s\"\n",setPEAP->username);
-		  fputs(gCmdStr, file);
-
-		  sprintf(gCmdStr,"\tpassword=\"%s\"\n",setPEAP->passwd);
-		  fputs(gCmdStr, file);
-
-
-	  }
-	  else 
-	  {
-		  sprintf(gCmdStr,"\tphase1=\"peapver=1\"\n");
-		  fputs(gCmdStr, file);
-		  sprintf(gCmdStr,"\tphase2=\"auth=GTC\"\n");
-		  fputs(gCmdStr, file);
-
-			// For WAP2 Test Plan 
-
-		  sprintf(gCmdStr,"\tidentity=\"%s\"\n",setPEAP->username);
-		  fputs(gCmdStr, file);
-
-		  sprintf(gCmdStr,"\tpassword=\"%s\"\n",setPEAP->passwd);
-		  fputs(gCmdStr, file);
-
-	  }
-
-	  sprintf(gCmdStr,"}\n");
-  	  fputs(gCmdStr, file);
-  }
-  fclose(file);
-
-  /* stop the service and start the service */
-   sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-   system(gCmdStr);
-   sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-   system(gCmdStr);
-   printf("Executing %s\n",gCmdStr);
-
-
-   setPeapResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-   return TRUE;
-}
 
 /*
  * wfaStaSetPEAP()
@@ -4765,76 +1995,25 @@ int wfaStaSetPEAP(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    char *ifname = setPEAP->intf;
    dutCmdResponse_t *setPeapResp = &gGenericResp;
 
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetPEAP ...\n");
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
 
-   sprintf(gCmdStr, "wpa_cli -i %s disable_network 0", ifname);
-   system(gCmdStr);
 
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", ifname, setPEAP->ssid);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 eap PEAP", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 anonymous_identity '\"anonymous\"' ", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 identity '\"%s\"'", ifname, setPEAP->username);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 password '\"%s\"'", ifname, setPEAP->passwd);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ca_cert '\"%s/%s\"'", ifname, CERTIFICATES_PATH, setPEAP->trustedRootCA);
-   system(gCmdStr);
-
-   /* if this not set, default to set support all */
-   //sprintf(gCmdStr, "wpa_cli -i %s set_network 0 pairwise '\"%s\"'", ifname, setPEAP->encrptype);
-   //system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 key_mgmt WPA-EAP", ifname);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 phase1 '\"peaplabel=%i\"'", ifname, setPEAP->peapVersion);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 phase2 '\"auth=%s\"'", ifname, setPEAP->innerEAP);
-   system(gCmdStr);
-
-   sprintf(gCmdStr, "wpa_cli -i %s enable_network 0", ifname);
-   system(gCmdStr);
-
-   setPeapResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);
-   *respLen = WFA_TLV_HDR_LEN + 4;
-#else
    switch(geSupplicant)
    {
-	   case eWindowsZeroConfig:
-		   wfaStaSetPEAPZeroConfig(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eMarvell:
-		   break;
-	   case eWpaSupplicant:
-		   wfaStaSetPEAPWpaSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eCiscoSecureClient:
-		   wfaStaSetPEAPCiscoSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eOpen1x:
-		   break;
-	   default:
-		   setPeapResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;
-		   break;
+	     case eWindowsZeroConfig:
+		    wfaStaSetPEAPZeroConfig(len,caCmdBuf,respLen,respBuf);
+		    break;
+	   
+	     default:
+		    setPeapResp->status = STATUS_INVALID;
+		    wfaEncodeTLV(WFA_STA_SET_PEAP_RESP_TLV, 4, (BYTE *)setPeapResp, respBuf);   
+		    *respLen = WFA_TLV_HDR_LEN + 4;
+		    break;
    }
 
-#endif
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
 
-
-   return TRUE;
+   return WFA_SUCCESS;
 }
 
 /*
@@ -4850,15 +2029,15 @@ int wfaStaSetUAPSD(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    caStaSetUAPSD_t *setUAPSD = (caStaSetUAPSD_t *)caCmdBuf;
    char *ifname = setUAPSD->intf;
    char tmpStr[10];
-   char *pathl="/etc/Wireless/RT61STA";
+   char *pathl="/etc/Wireless/RT61STA";   // Need to change to fix the path hardcode
    dutCmdResponse_t *setUAPSDResp = &gGenericResp;
    BYTE acBE=1;
    BYTE acBK=1;
    BYTE acVO=1;
    BYTE acVI=1;
    BYTE APSDCapable;
-//   FILE *pipe;
 
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
    /*
     * A series of setting need to be done before doing WMM-PS
     * Additional steps of configuration may be needed.
@@ -4868,16 +2047,12 @@ int wfaStaSetUAPSD(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
     * bring down the interface
     */
    sprintf(gCmdStr, "ifconfig %s down",ifname);
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   system(gCmdStr);
-#endif
+
    /*
     * Unload the Driver
     */
    sprintf(gCmdStr, "rmmod rt61");
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   system(gCmdStr);
-#endif
+
    if(setUAPSD->acBE != 1)
      acBE=setUAPSD->acBE = 0;
    if(setUAPSD->acBK != 1)
@@ -4894,30 +2069,15 @@ int wfaStaSetUAPSD(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 
    sprintf(tmpStr,"%d;%d;%d;%d",setUAPSD->acBE,setUAPSD->acBK,setUAPSD->acVI,setUAPSD->acVO);
    sprintf(gCmdStr, "sed -e \"s/APSDCapable=.*/APSDCapable=%d/g\" -e \"s/APSDAC=.*/APSDAC=%s/g\" %s/rt61sta.dat >/tmp/wfa_tmp",APSDCapable,tmpStr,pathl);
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-     char line[100];
-   system(gCmdStr);
-   
-   sprintf(gCmdStr, "mv /tmp/wfa_tmp %s/rt61sta.dat",pathl);
-   system(gCmdStr);
-//  pipe = popen("uname -r", "r");
-  /* Read into line the output of uname*/
-  //     fscanf(pipe,"%s",line);
-    //   pclose(pipe);
 
-   /*
-    * load the Driver
-    */
-   sprintf(gCmdStr, "insmod /lib/modules/%s/extra/rt61.ko",line);
-   system(gCmdStr);
-   
-   sprintf(gCmdStr, "ifconfig %s up",ifname);
-   system(gCmdStr);
-#endif
+
    setUAPSDResp->status = STATUS_COMPLETE;
    wfaEncodeTLV(WFA_STA_SET_UAPSD_RESP_TLV, 4, (BYTE *)setUAPSDResp, respBuf);
    *respLen = WFA_TLV_HDR_LEN + 4;
-   return TRUE;
+
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 int wfaDeviceGetInfo(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
@@ -4926,81 +2086,92 @@ int wfaDeviceGetInfo(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    FILE *tmpfile;
    /*a vendor can fill in the proper info or anything non-disclosure */
    caDeviceGetInfoResp_t dinfo;
-	int i;
-	char string[512];
-	 char *str;
+   int i;
+   char string[512];
+   char tfile[128], resfile[128];
+   char *str;
 
-   DPRINT_INFO(WFA_OUT, "Entering wfaDeviceGetInfo ...\n");
+   DPRINT_INFOL(WFA_OUT, "Entering wfaDeviceGetInfo() ...\n");
 
-	sprintf(gCmdStr, "del /F c:\\WFA\\temp.txt",string);
-   	//printf("Executing %s\n",gCmdStr);
-   	system(gCmdStr);
-	sprintf(gCmdStr, "del /F c:\\WFA\\result.txt",string);
-   	//printf("Executing %s\n",gCmdStr);
-   	system(gCmdStr);
+   sprintf(tfile, "%s\\Temp\\temp.txt", sigmaPath);
+   sprintf(resfile, "%s\\Temp\\result.txt", sigmaPath);
 
-	sprintf(gCmdStr, "netsh wlan show  drivers > c:\\WFA\\temp.txt");
-   	//printf("Executing %s\n",gCmdStr);
-   	system(gCmdStr);
+   sprintf(gCmdStr, "del /F /Q %s",tfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+   system(gCmdStr);
+   sprintf(gCmdStr, "del /F /Q %s",resfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+   system(gCmdStr);
 
-	sprintf(gCmdStr, "FOR /F \"tokens=2 delims=:\" %s IN ('findstr Vendor c:\\WFA\\temp.txt') DO @echo %s > c:\\WFA\\result.txt","%i","%i");
-   	//printf("Executing %s\n",gCmdStr);
-   	system(gCmdStr);
+   sprintf(gCmdStr, "netsh wlan show  drivers > %s", tfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+   system(gCmdStr);
+
+   sprintf(gCmdStr, "FOR /F \"tokens=2 delims=:\" %s IN ('findstr Vendor %s') DO @echo %s > %s","%i",tfile, "%i", resfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+   system(gCmdStr);
+
+   tmpfile = fopen(resfile, "r");
+   if(tmpfile == NULL)
+   {
+      DPRINT_ERR(WFA_ERR, "Error opening the result.txt file \n");
+      infoResp->status = STATUS_ERROR;
+      wfaEncodeTLV(WFA_DEVICE_GET_INFO_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)infoResp, respBuf);   
+      *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
+
+      return WFA_FAILURE;
+   }
+   else
+   {
+      for(;;)
+	  {
+	     if(fgets(string, 256, tmpfile) == NULL)
+	       	break; 
+	  }
+	  fclose(tmpfile);
+	  i=strlen(string);
+	  string[i]='\0';
+   }
+
+   str = strtok(string, " ");
+   if(str != NULL)
+   {
+       strncpy(dinfo.vendor, str,16);		
+	   DPRINT_INFO(WFA_OUT, "The Vendor %s", str);
+   }
 
 
-
-	tmpfile = fopen("c:\\WFA\\result.txt", "r");
-	if(tmpfile == NULL)
-	{
-		printf("\n Error opening the result.txt file \n");
-	}
-	else
-	{
-		for(;;)
-		{
-			if(fgets(string, 256, tmpfile) == NULL)
-				break; 
-		}
-		fclose(tmpfile);
-		i=strlen(string);
-		string[i]='\0';
-	}
-
-	 str = strtok(string, " ");
-	 //str = strtok(NULL, " ");
-	 if(str != NULL)
-	 {
-		strncpy(dinfo.vendor, str,16);		
-		printf("The Vendor %s", str);
-	 }
+   sprintf(gCmdStr, "FOR /F \"tokens=2 delims=:\" %s IN ('findstr Version %s') DO @echo %s > %s","%i",tfile, "%i", resfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+   system(gCmdStr);
 
 
-	sprintf(gCmdStr, "FOR /F \"tokens=2 delims=:\" %s IN ('findstr Version c:\\WFA\\temp.txt') DO @echo %s > c:\\WFA\\result.txt","%i","%i");
-   	//printf("Executing %s\n",gCmdStr);
-   	system(gCmdStr);
+   tmpfile = fopen(resfile, "r");
+   if(tmpfile == NULL)
+   {
+      DPRINT_ERR(WFA_ERR, "Error opening the result.txt file \n");
+      infoResp->status = STATUS_ERROR;
+      wfaEncodeTLV(WFA_DEVICE_GET_INFO_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)infoResp, respBuf);   
+      *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
+      return WFA_FAILURE;
+   }
+   else
+   {
+      for(;;)
+      {
+	      if(fgets(string, 256, tmpfile) == NULL)
+	        break; 
+      }
+	  fclose(tmpfile);
+	  i=strlen(string);
+	  string[i]='\0';
+   }
+   strncpy(dinfo.version, string,16);		
+   DPRINT_INFO(WFA_OUT, "The Version %s", string);
 
-	tmpfile = fopen("c:\\WFA\\result.txt", "r");
-	if(tmpfile == NULL)
-	{
-		printf("\n Error opening the result.txt file \n");
-	}
-	else
-	{
-		for(;;)
-		{
-			if(fgets(string, 256, tmpfile) == NULL)
-				break; 
-		}
-		fclose(tmpfile);
-		i=strlen(string);
-		string[i]='\0';
-	}
-	strncpy(dinfo.version, string,16);		
-	printf("The Version %s", string);
-
-	strncpy(dinfo.model, WFA_CLI_VERSION,16);		
-	printf("The model %s", string);
+   strncpy(dinfo.model, WFA_CLI_VERSION,16);		
+   DPRINT_INFO(WFA_OUT, "The model %s", string);
 
    memcpy(&infoResp->cmdru.devInfo, &dinfo, sizeof(caDeviceGetInfoResp_t));
 
@@ -5008,8 +2179,9 @@ int wfaDeviceGetInfo(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    wfaEncodeTLV(WFA_DEVICE_GET_INFO_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)infoResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
 
+   return WFA_SUCCESS;
 }
 
 /*
@@ -5030,20 +2202,17 @@ int wfaDeviceListIF(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    dutCommand_t *ifList = (dutCommand_t *)caCmdBuf;
    caDeviceListIFResp_t *ifListResp = &infoResp->cmdru.ifList;
 
-   DPRINT_INFO(WFA_OUT, "Entering wfaDeviceListIF ...\n");
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
    switch(ifList->cmdsu.iftype)
    {
       case IF_80211:
       infoResp->status = STATUS_COMPLETE;
       ifListResp->iftype = IF_80211; 
-#ifdef _WINDOWS
       strcpy(ifListResp->ifs[0], aINTERFACE);
-#else
-	  strcpy(ifListResp->ifs[0], WFA_STAUT_IF);
-#endif
       strcpy(ifListResp->ifs[1], "NULL");
       strcpy(ifListResp->ifs[2], "NULL");
       break;
+
       case IF_ETH:
       infoResp->status = STATUS_COMPLETE;
       ifListResp->iftype = IF_ETH; 
@@ -5051,20 +2220,19 @@ int wfaDeviceListIF(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
       strcpy(ifListResp->ifs[1], "NULL");
       strcpy(ifListResp->ifs[2], "NULL");
       break;
+
       default:
       {
          infoResp->status = STATUS_ERROR;
-         wfaEncodeTLV(WFA_DEVICE_LIST_IF_RESP_TLV, 4, (BYTE *)infoResp, respBuf);   
-         *respLen = WFA_TLV_HDR_LEN + 4;
-
-         return TRUE; 
       }
    }
    
    wfaEncodeTLV(WFA_DEVICE_LIST_IF_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)infoResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
-   return TRUE;
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+   return WFA_SUCCESS;
 }
 
 int wfaStaDebugSet(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
@@ -5072,7 +2240,7 @@ int wfaStaDebugSet(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    dutCmdResponse_t *debugResp = &gGenericResp;
    dutCommand_t *debugSet = (dutCommand_t *)caCmdBuf;
 
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaDebugSet ...\n");
+   DPRINT_INFOL(WFA_OUT, "Entering  ...\n");
 
    if(debugSet->cmdsu.dbg.state == 1) /* enable */
       wfa_defined_debug |= debugSet->cmdsu.dbg.level;
@@ -5083,8 +2251,9 @@ int wfaStaDebugSet(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    wfaEncodeTLV(WFA_STA_GET_INFO_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)debugResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
 
-   return TRUE;
+   return WFA_SUCCESS;
 }
 
 
@@ -5099,117 +2268,70 @@ int wfaStaGetBSSID(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    dutCmdResponse_t *bssidResp = &gGenericResp;
    dutCommand_t *getbssid= (dutCommand_t *)caCmdBuf;
    char *ifname = getbssid->intf;
-   int i;
+   char bfile[128], intfile[128], tfile[128];
 
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaGetBSSID ...\n");
+   DPRINT_INFOL(WFA_OUT, "Entering ...\n");
    /* retrieve the BSSID */
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   sprintf(gCmdStr, "wpa_cli status > /tmp/bssid.txt");
-
-#else
-#ifdef _CYGWIN
-   sprintf(gCmdStr, "wifi_config -limit %s -query bssid> /tmp/bssid.txt", ifname);
-#else
-   sprintf(gCmdStr, "del c:\\windows\\temp\\bssid.txt");
+   sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+   sprintf(bfile, "%s\\Temp\\bssid.txt", sigmaPath);
+   sprintf(gCmdStr, "del /F /Q %s", bfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
    system(gCmdStr);
    if(geSupplicant == eWindowsZeroConfig)
    {
+		    tmpfd = fopen(intfile, "r");
+		    if(tmpfd == NULL)
+		    {
+			      printf("\n Error opening the interface file \n");
+	    	}
+	    	else
+	   	 {
+		     	for(;;)
+		     	{
+			       	if(fgets(string, 256, tmpfd) == NULL)
+			         		break; 
+			     }
+			     fclose(tmpfd);
 
+		     	if(strncmp(string, "IFNAME", 6) == 0)
+		  	   {
+		      		 char *str;
+			      	 str = strtok(string, "\"");
+			      	 str = strtok(NULL, "\"");
+			      	 if(str != NULL)
+	     	 		 {
+		        			 strcpy(&Interfacename[0],str);
+		     		  }
+			     }
+	   	}
+     sprintf(tfile, "%s\\Temp\\temp.txt", sigmaPath);
+		   sprintf(gCmdStr, "del /F /Q %s",tfile);
+		   sprintf(gCmdStr, "netsh wlan show  interface name=\"%s\" > %s",&Interfacename[0], tfile);
+     DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+	 	  system(gCmdStr);
 
-		tmpfd = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-		if(tmpfd == NULL)
-		{
-			printf("\n Error opening the interface file \n");
-		}
-		else
-		{
-			for(;;)
-			{
-				if(fgets(string, 256, tmpfd) == NULL)
-					break; 
-			}
-			fclose(tmpfd);
-
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
-
-			  }
-		}
-		sprintf(gCmdStr, "del /F c:\\WFA\\temp.txt",string);
-       	//printf("Executing %s\n",gCmdStr);
-
-		sprintf(gCmdStr, "netsh wlan show  interface name=\"%s\" > c:\\WFA\\temp.txt",&Interfacename[0]);
-       	//printf("Executing %s\n",gCmdStr);
-	   	system(gCmdStr);
-
-		sprintf(gCmdStr, "FOR /F \"tokens=2,3,4,5,6,7 delims=:\" %s IN ('findstr BSSID c:\\WFA\\temp.txt') DO @echo %s:%s:%s:%s:%s:%s > c:\\windows\\temp\\bssid.txt","%i","%i","%j","%k","%l","%m","%n");
-       	//printf("Executing %s\n",gCmdStr);
-		system(gCmdStr);
+	   	sprintf(gCmdStr, "FOR /F \"tokens=2,3,4,5,6,7 delims=:\" %s IN ('findstr BSSID %s') DO @echo %s:%s:%s:%s:%s:%s > %s","%i",tfile, "%i","%j","%k","%l","%m","%n", bfile);
+     DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+	 	  system(gCmdStr);
 
    }
-//	   sprintf(gCmdStr, "wifi_config -limit %s -query bssid> c:\\windows\\temp\\bssid.txt", gnetIf);
-   else if(geSupplicant == eWpaSupplicant)
-	   //sprintf(gCmdStr, "wpa_cli -i\\Device\\NPF_%s status > c:\\windows\\temp\\bssid.txt", gnetIf);
-	   sprintf(gCmdStr, "wpa_cli status > c:\\windows\\temp\\bssid.txt", gnetIf);
-   else if(geSupplicant == eCiscoSecureClient)
-	   sprintf(gCmdStr, "FOR /F \"tokens=18 delims=. \" %s IN ('find \"Associated to ssid\" \"c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\logs\\CurrentLog.txt\"') DO @echo %s > c:\\windows\\temp\\bssid.txt","%i","%i");
-   else if(geSupplicant == eMarvell)
-	   sprintf(gCmdStr, "WfaMarvell.exe c:\\windows\\temp\\bssid.txt");
 
-#endif
-#endif
-   //printf("Executing %s\n",gCmdStr);
    system(gCmdStr);
-#ifndef _WINDOWS
-   tmpfd = fopen("/tmp/bssid.txt", "r+");
-#else
-   tmpfd = fopen("c:\\windows\\temp\\bssid.txt", "r+");
-#endif
+
+   tmpfd = fopen(bfile, "r+");
    if(tmpfd == NULL)
    {
       bssidResp->status = STATUS_ERROR;
       wfaEncodeTLV(WFA_STA_GET_BSSID_RESP_TLV, 4, (BYTE *)bssidResp, respBuf);   
       *respLen = WFA_TLV_HDR_LEN + 4;
 
-      DPRINT_ERR(WFA_ERR, "file open failed\n");
-      return FALSE;
+      DPRINT_ERR(WFA_ERR, "File open failed\n");
+      return WFA_FAILURE;
    }
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-   for(;;)
+   if(geSupplicant == eWindowsZeroConfig)
    {
-      if(fscanf(tmpfd, "%s", string) == EOF)
-      {
-         bssidResp->status = STATUS_COMPLETE; 
-         strcpy(bssidResp->cmdru.bssid, "00:00:00:00:00:00");
-         break; 
-      }
-
-      if(strncmp(string, "bssid", 5) == 0)
-      {
-	 char *str;
-         str = strtok(string, "=");
-         str = strtok(NULL, "=");
-         if(str != NULL)
-         {
-            strcpy(bssidResp->cmdru.bssid, str);
-            bssidResp->status = STATUS_COMPLETE;
-            break;
-         }
-      }
-   }
-#else
-   if(geSupplicant == eWindowsZeroConfig || geSupplicant == eCiscoSecureClient )
-   {
-
       if(fscanf(tmpfd, "%s", string) == EOF)
       {
          bssidResp->status = STATUS_COMPLETE; 
@@ -5220,41 +2342,15 @@ int wfaStaGetBSSID(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
             strcpy(bssidResp->cmdru.bssid, string);
             bssidResp->status = STATUS_COMPLETE;
       }
-   } 
-   else if (geSupplicant == eWpaSupplicant || geSupplicant == eMarvell)
-   {
-	     for(;;)
-		   {
-			  if(fscanf(tmpfd, "%s", string) == EOF)
-			  {
-				 bssidResp->status = STATUS_COMPLETE; 
-				 strcpy(bssidResp->cmdru.bssid, "00:00:00:00:00:00");
-				 break; 
-			  }
+   }  
 
-			  if((strncmp(string, "bssid", 5) == 0) || (strncmp(string, "BSSID", 5) == 0 ))
-			  {
-				 char *str;
-
-					 str = strtok(string, "=");
-					 str = strtok(NULL, "=");
-				 if(str != NULL)
-				 {
-					strcpy(bssidResp->cmdru.bssid, str);
-					bssidResp->status = STATUS_COMPLETE;
-					break;
-				 }
-			  }
-			}
-   }
-
- 
-#endif
    wfaEncodeTLV(WFA_STA_GET_BSSID_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)bssidResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
 
    fclose(tmpfd);
-   return TRUE;
+
+   DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+   return WFA_SUCCESS;
 }
 
 /*
@@ -5285,7 +2381,8 @@ int wfaStaSetIBSS(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    /*
     * set SSID
     */
-   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", setIBSS->intf, setIBSS->ssid); 
+   sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", setIBSS->intf, setIBSS->ssid);
+
    system(gCmdStr);
 
    /*
@@ -5712,278 +2809,157 @@ int wfaStaSetWMM(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 }
 
 
-int DisableCiscoSupplicant(void)
-{
-	printf("Inside DisableCiscoSupplicant function ...\n");
-	WinExec("AutomateCisco.exe",SW_MAXIMIZE);
-	Sleep(30000);
-	return 1;
-}
-
-int EnableCiscoSupplicant(void)
-{
-	int ret;
-	printf("Inside EnableCiscoSupplicant function ...\n");
-
-	// start the service
-	sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\" ");
-	DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
-	ret = system(gCmdStr);
-	DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
-	Sleep(2000);
-
-	return 1;
-}
-
 int GetIntelDeviceID(char * apDeviceID)
 {
-	FILE *file;
-	char prv3Line[96];
-	char prv2Line[96];
-	char prv1Line[96];
-	char prvLine[128];
-	char crntLine[128];
-	char deviceID[16];
-	char * str;
+    FILE *file;
+    char prv3Line[96];
+  	char prv2Line[96];
+  	char prv1Line[96];
+  	char prvLine[128];
+    char crntLine[128];
+  	char deviceID[16];
+    char * str;
 
-	DPRINT_INFO(WFA_OUT, "Inside GetIntelDeviceID function ...\n");	
+    DPRINT_INFOL(WFA_OUT, "Entering ...\n");	
 
-	// get the Device ID
-	sprintf(gCmdStr, "devcon hwids \"*\" > c:\\windows\\temp\\devid.txt");
-	system(gCmdStr);
-	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-	Sleep(3000);
-	// open the file and read for
-	file = fopen("c:\\windows\\temp\\devid.txt","r+");
-	if(file == NULL)
-	{
-		//error opening the registry and print error
-		printf("\nError opening c:\\windows\\temp\\devid.txt - Device ID dump ");
-	}
-	else
-	{
-		for(;;)
-		{
-			if(fscanf(file, "%127s", crntLine) == EOF)
-			{
-				DPRINT_ERR(WFA_ERR, "EOF reached, Device ID not found\n");
-				fclose(file);
-				return TRUE;
-			}
+  	// get the Device ID
+    sprintf(gCmdStr, "devcon hwids \"*\" > c:\\windows\\temp\\devid.txt");
+    system(gCmdStr);
+    DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+    Sleep(3000);
+	  // open the file and read for
+    file = fopen("c:\\windows\\temp\\devid.txt","r+");
+    if(file == NULL)
+    {
+ 	    //error opening the registry and print error
+	    printf("\nError opening c:\\windows\\temp\\devid.txt - Device ID dump ");
+    }
+    else
+    {
+        for(;;)
+	    {
+	      	if(fscanf(file, "%127s", crntLine) == EOF)
+		   	{
+	   			DPRINT_ERR(WFA_ERR, "EOF reached, Device ID not found\n");
+        		fclose(file);
+        		return WFA_SUCCESS;
+		    }
 
-			if(strncmp(crntLine, "3945ABG", 14) == 0)
-			{
-				break;
-			}
-			strncpy(prv3Line,prv2Line,95);
-			strncpy(prv2Line,prv1Line,95);
-			strncpy(prv1Line,prvLine,95);
-			strcpy(prvLine,crntLine);
-		}
+            if(strncmp(crntLine, "3945ABG", 14) == 0)
+	        {
+	        	break;
+	         }
+	         strncpy(prv3Line,prv2Line,95);
+	      	 strncpy(prv2Line,prv1Line,95);
+		     strncpy(prv1Line,prvLine,95);
+		     strcpy(prvLine,crntLine);
+	 	}
 		fclose(file);
 		printf("Current line is: %s",crntLine);
-		printf("PrivLine line is: %s",prvLine);
-		printf("Priv1Line line is: %s",prv1Line);
-		printf("Priv2Line line is: %s",prv2Line);
+	    printf("PrivLine line is: %s",prvLine);
+	    printf("Priv1Line line is: %s",prv1Line);
+	    printf("Priv2Line line is: %s",prv2Line);
 		printf("Priv3Line line is: %s",prv3Line);	
 
 		str = strtok(prv3Line,"&");
 		str = strtok(NULL,"&");
-		strcpy(deviceID,str);		
-		printf("\n The Device ID is -  : %s",deviceID);
-		strcpy(apDeviceID,deviceID);
-	}
-
-
+	    strcpy(deviceID,str);		
+	   	printf("\n The Device ID is -  : %s",deviceID);
+	    strcpy(apDeviceID,deviceID);
+    }
 }
+
 int GetIntelRegistryID(char * apRegistryID)
 {	
 	FILE *file;
-	char prvLine[128];
-	char crntLine[128];
+  	char prvLine[128];
+  	char crntLine[128];
 
-	sprintf(gCmdStr, "reg query HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class /s > c:\\windows\\temp\\test.txt");
-	system(gCmdStr);
-	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-	Sleep(3000);
+    sprintf(gCmdStr, "reg query HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class /s > c:\\windows\\temp\\test.txt");
+  	system(gCmdStr);
+    DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+    Sleep(3000);
 
-	// open the file and read for
-	file = fopen("c:\\windows\\temp\\test.txt","r+");
-	if(file == NULL)
-	{
-		//error opening the registry and print error
-		printf("\nError opening c:\\windows\\temp\\test.txt - registry dump ");
-	}
-	else
-	{
-		for(;;)
-		{
-			if(fscanf(file, "%127s", crntLine) == EOF)
-			{
-				DPRINT_ERR(WFA_ERR, "EOF reached, Requested mode not set\n");
-				fclose(file);
-				return TRUE;
-			}
+	  // open the file and read for
+  	file = fopen("c:\\windows\\temp\\test.txt","r+");
+    if(file == NULL)
+    {
+       //error opening the registry and print error
+       printf("\nError opening c:\\windows\\temp\\test.txt - registry dump ");
+    }
+    else
+    {
+       for(;;)
+	   {
+	       if(fscanf(file, "%127s", crntLine) == EOF)
+	       {
+		      DPRINT_ERR(WFA_ERR, "EOF reached, Requested mode not set\n");
+		      fclose(file);
+		      return WFA_SUCCESS;
+		   }
 
-			if(strncmp(crntLine, "ModulationType", 14) == 0)
-			{
-				break;
-			}
-			strcpy(prvLine,crntLine);
-		}
-		fclose(file);
+    	   if(strncmp(crntLine, "ModulationType", 14) == 0)
+           {
+		      break;
+		   }
+		   strcpy(prvLine,crntLine);
+	   }
+	   fclose(file);
+       printf("Current line is: %s",crntLine);
+       printf("PrivLine line is: %s",prvLine);
 
-		printf("Current line is: %s",crntLine);
-		printf("PrivLine line is: %s",prvLine);
+       strcpy(apRegistryID,prvLine);
+    }
 
-		strcpy(apRegistryID,prvLine);
-	}
-
-		return TRUE;
-
-
+ 	return WFA_SUCCESS;
 }
+
 int setIntelMode( int aMode )
 {
-///	FILE *file;
-//	char prv3Line[96];
-//	char prv2Line[96];
-//	char prv1Line[96];
-//	char prvLine[128];
-	char registyID[128];
-	char deviceID[16];
-//	char * str;
+	  char registyID[128];
+	  char deviceID[16];
 
-	DPRINT_INFO(WFA_OUT, "Inside setIntelmode function ...\n");	
+	  DPRINT_INFO(WFA_OUT, "Inside setIntelmode function ...\n");	
 
 
-	// get the Device ID
-	GetIntelDeviceID(deviceID);
-/*
-	sprintf(gCmdStr, "devcon hwids \"*\" > c:\\windows\\temp\\devid.txt");
-	system(gCmdStr);
-	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-	Sleep(3000);
+	  // get the Device ID
+	  GetIntelDeviceID(deviceID);
+	  GetIntelRegistryID(registyID);
+	  if(aMode == eModeB)
+	  {
+		     sprintf(gCmdStr, "reg add %s /v ModulationType /t REG_SZ /d 0 /f",registyID);
+		     system(gCmdStr);
+	     	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+	     	Sleep(1000);
+	     	sprintf(gCmdStr, "reg add %s /v BandType /t REG_DWORD /d 0x0 /f",registyID);
+	     	system(gCmdStr);
+	     	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+	     	Sleep(1000);
+	  }
+	  else if(aMode == eModeABG)
+	  {
+		     sprintf(gCmdStr, "reg add %s /v ModulationType /t REG_SZ /d 2 /f",registyID);
+		     system(gCmdStr);
+	     	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+	     	Sleep(1000);
+	     	sprintf(gCmdStr, "reg add %s /v BandType /t REG_DWORD /d 0x2 /f",registyID);
+		     system(gCmdStr);
+		     DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+		     Sleep(1000);
+	  }
 
-	// open the file and read for
-	file = fopen("c:\\windows\\temp\\devid.txt","r+");
-	if(file == NULL)
-	{
-		//error opening the registry and print error
-		printf("\nError opening c:\\windows\\temp\\devid.txt - Device ID dump ");
-	}
-	else
-	{
-		for(;;)
-		{
-			if(fscanf(file, "%127s", crntLine) == EOF)
-			{
-				DPRINT_ERR(WFA_ERR, "EOF reached, Device ID not found\n");
-				fclose(file);
-				return TRUE;
-			}
+	  sprintf(gCmdStr, "devcon disable *%s*",deviceID);
+	  system(gCmdStr);
+	  DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+	  Sleep(2000);
+	  sprintf(gCmdStr, "devcon enable *%s*",deviceID);
+	  system(gCmdStr);
+	  DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+	  Sleep(2000);
 
-			if(strncmp(crntLine, "3945ABG", 14) == 0)
-			{
-				break;
-			}
-			strncpy(prv3Line,prv2Line,95);
-			strncpy(prv2Line,prv1Line,95);
-			strncpy(prv1Line,prvLine,95);
-
-			strcpy(prvLine,crntLine);
-
-
-
-
-		}
-		fclose(file);
-		printf("Current line is: %s",crntLine);
-		printf("PrivLine line is: %s",prvLine);
-		printf("Priv1Line line is: %s",prv1Line);
-		printf("Priv2Line line is: %s",prv2Line);
-		printf("Priv3Line line is: %s",prv3Line);	
-
-		str = strtok(prv3Line,"&");
-		str = strtok(NULL,"&");
-		strcpy(deviceID,str);		
-		printf("\n The Device ID is -  : %s",deviceID);
-
-	}
-	*/
-	// Get the Regstry ID	
-		// get the Device registry ID
-	GetIntelRegistryID(registyID);
-/*
-	sprintf(gCmdStr, "reg query HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class /s > c:\\windows\\temp\\test.txt");
-	system(gCmdStr);
-	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-	Sleep(3000);
-
-	// open the file and read for
-	file = fopen("c:\\windows\\temp\\test.txt","r+");
-	if(file == NULL)
-	{
-		//error opening the registry and print error
-		printf("\nError opening c:\\windows\\temp\\test.txt - registry dump ");
-	}
-	else
-	{
-		for(;;)
-		{
-			if(fscanf(file, "%127s", crntLine) == EOF)
-			{
-				DPRINT_ERR(WFA_ERR, "EOF reached, Requested mode not set\n");
-				fclose(file);
-				return TRUE;
-			}
-
-			if(strncmp(crntLine, "ModulationType", 14) == 0)
-			{
-				break;
-			}
-			strcpy(prvLine,crntLine);
-		}
-		fclose(file);
-
-		printf("Current line is: %s",crntLine);
-		printf("PrivLine line is: %s",prvLine);
-	}
-	*/
-	if(aMode == eModeB)
-	{
-		sprintf(gCmdStr, "reg add %s /v ModulationType /t REG_SZ /d 0 /f",registyID);
-		system(gCmdStr);
-		DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		Sleep(1000);
-		sprintf(gCmdStr, "reg add %s /v BandType /t REG_DWORD /d 0x0 /f",registyID);
-		system(gCmdStr);
-		DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		Sleep(1000);
-	}
-	else if(aMode == eModeABG)
-	{
-		sprintf(gCmdStr, "reg add %s /v ModulationType /t REG_SZ /d 2 /f",registyID);
-		system(gCmdStr);
-		DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		Sleep(1000);
-		sprintf(gCmdStr, "reg add %s /v BandType /t REG_DWORD /d 0x2 /f",registyID);
-		system(gCmdStr);
-		DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		Sleep(1000);
-	}
-
-	sprintf(gCmdStr, "devcon disable *%s*",deviceID);
-	system(gCmdStr);
-	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-	Sleep(2000);
-	sprintf(gCmdStr, "devcon enable *%s*",deviceID);
-	system(gCmdStr);
-	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-	Sleep(2000);
-
-	return TRUE;
+	  return TRUE;
 }
+
 int setIntelPowerSave( BYTE aPowerSave)
 {
 //	FILE *file;
@@ -6024,13 +3000,13 @@ int setIntelPowerSave( BYTE aPowerSave)
 	DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
 	Sleep(2000);
 
-	return TRUE;
+	return WFA_SUCCESS;
 }
+
 int wfaStaPresetParameters(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
    caStaPresetParameters_t *presetParams = (caStaPresetParameters_t *)caCmdBuf;
    dutCmdResponse_t *PresetParamsResp = &gGenericResp;
-   int ret;
    char *intfname = presetParams->intf;
    BYTE presetDone=0;
    int st = 0;
@@ -6047,141 +3023,6 @@ int wfaStaPresetParameters(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 
 
 #if defined(_CYGWIN) || defined(_WINDOWS)
-  /* switch(presetParams->supplicant)
-   { 
-	   case eWindowsZeroConfig:
-	  
-		   // Cisco Secure client supplicant
-			DisableCiscoSupplicant();
-
-		   // stop the other supplicants and start ZeroConfig
-			// WpaSupplicant supplicant
-		   sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	       DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		   ret = system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
-
-		   // stop the Marvell supplicant
-   			sprintf(gCmdStr, "Taskkill /T /F /IM Mrv8000x.exe");
-			system(gCmdStr);
-			Sleep(1000);
-
-
-		   sprintf(gCmdStr, "sc start wzcsvc");
-		   DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
-		   ret = system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
-		   Sleep(500);
-		   sprintf(gCmdStr, "wifi_config -limit %s -enable", gnetIf);
-		   system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
-
-		   geSupplicant = eWindowsZeroConfig;
-		   DPRINT_INFO(WFA_OUT,"New Supplicant value: %d\n",geSupplicant);
-		   
-		   presetDone = 1;
-		   break;
-	   case eMarvell:
-		   // stop the other supplicants and start Marvell Supplicant
-
-		   
-		   //Disable Cisco supplicant
-		   DisableCiscoSupplicant();
-		   
-
-		   // WpaSupplicant supplicant
-		   sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	       DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		   ret = system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
-		   
-		   // Disable Zero Config
-		   sprintf(gCmdStr, "wifi_config -limit %s -disable", gnetIf);
-		   system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
-		   
-		   // Run Marvell Supplicant
-		   //sprintf(gCmdStr, "\"C:\\Program\ Files\Marvell CB82\Mrv8000x.exe\"");
-		   //system(gCmdStr);
-			sprintf(gCmdStr, " start \"Marvell\" /D \"c:\\Program\ Files\\Marvell\ CB82\" Mrv8000x.exe");
-			system(gCmdStr);
-			printf("Executing %s\n",gCmdStr);
-		   // Check in the process list that the Mrv8000x.exe is running.
-
-		   geSupplicant = eMarvell;
-
-		   presetDone = 1;
-		   break;
-	   case eWpaSupplicant:
-		   // stop the other supplicants and start WpaSupplicant
-
-			// Cisco Secure client supplicant
-			DisableCiscoSupplicant();
-
-		   // stop the Marvell supplicant
-   			sprintf(gCmdStr, "Taskkill /T /F /IM Mrv8000x.exe");
-			system(gCmdStr);
-			Sleep(1000);
-
-			// Zero Config
-		   sprintf(gCmdStr, "wifi_config -limit %s -disable", gnetIf);
-		   system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
-
-		   sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-		   ret = system(gCmdStr);
-		   printf("Retun value: %d\n",ret);
-		   Sleep(1000);
-	
-		   geSupplicant = eWpaSupplicant;
-		   printf("supplicant after WpaSupplicant is set: %d\n",geSupplicant);
-
-		   presetDone = 1;
-		   break;
-	   case eCiscoSecureClient:
-		   // stop the other supplicants and start Cisco Secure Client
-		   sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	      DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		   ret = system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
-
-		   // stop the Marvell supplicant
-   			sprintf(gCmdStr, "Taskkill /T /F /IM Mrv8000x.exe");
-			system(gCmdStr);
-			Sleep(1000);
-
-			// Zero Config
-		   sprintf(gCmdStr, "wifi_config -limit %s -disable", gnetIf);
-		   system(gCmdStr);
-		   DPRINT_INFO(WFA_OUT,"Executing %s\n",gCmdStr);
-
-			// Cisco Secure client supplicant
-			EnableCiscoSupplicant();
-
-		   geSupplicant = eCiscoSecureClient;
-
-		   presetDone = 1;
-		   break;
-	   case eOpen1x:
-		   // stop the other supplicants and start Open1x
-		   geSupplicant = eOpen1x;
-
-		   break;
-	   case eIntelProset:
-		   // stop the other supplicants and start IntelProset
-		   geSupplicant = eIntelProset;
-
-		   break;		
-	   case eDefault:
-	   default:
-		   geSupplicant = eWindowsZeroConfig;
-		   PresetParamsResp->status = STATUS_COMPLETE;
-		   wfaEncodeTLV(WFA_STA_PRESET_PARAMETERS_RESP_TLV, 4, (BYTE *)PresetParamsResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;
-		   break;
-   }
-   */
-   // check for other preset parameters
 #ifndef TGN_TB_STATION
 	if(presetParams->modeFlag)
 	{
@@ -6480,573 +3321,17 @@ int wfaStaPresetParameters(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
    wfaEncodeTLV(WFA_STA_PRESET_PARAMETERS_RESP_TLV, 4, (BYTE *)PresetParamsResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + 4;
 #endif
-	return TRUE;
-}
-
-int CiscoConfigGenerateUpperPart(FILE *file)
-{
-	if(file==NULL) 
-	{
-		printf("Error: can't Open Config file.\n");
-		return 1;
-	}
-	sprintf(gCmdStr,"<configuration minor_version=\"1\" development_version=\"2\" major_version=\"5\" >\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t<networkPolicy>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<allowedAssociationModes>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<openNoEncryption/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<openStaticWep/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<sharedStaticWep/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<open1xDynamicWep/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<wpaPersonalTkip/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<wpaPersonalAes/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<wpa2PersonalTkip/>\n");
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t\t\t<wpa2PersonalAes/>\n");
-    fputs(gCmdStr, file);           
-    sprintf(gCmdStr,"\t\t\t<wpaEnterpriseTkip/>\n");
-    fputs(gCmdStr, file);            
-    sprintf(gCmdStr,"\t\t\t<wpaEnterpriseAes/>\n");
-    fputs(gCmdStr, file);               
-    sprintf(gCmdStr,"\t\t\t<wpa2EnterpriseTkip/>\n");
-    fputs(gCmdStr, file);               
-    sprintf(gCmdStr,"\t\t\t<wpa2EnterpriseAes/>\n");
-    fputs(gCmdStr, file);             
-    sprintf(gCmdStr,"\t\t\t<cckmEnterpriseTkip/>\n");
-    fputs(gCmdStr, file);               
-    sprintf(gCmdStr,"\t\t\t<cckmEnterpriseAes/>\n");
-    fputs(gCmdStr, file);               
-    sprintf(gCmdStr,"\t\t</allowedAssociationModes>\n");
-    fputs(gCmdStr, file);               
-    sprintf(gCmdStr,"\t\t<allowedEapMethods>\n");
-    fputs(gCmdStr, file);              
-    sprintf(gCmdStr,"\t\t\t<eapMd5/>\n");
-    fputs(gCmdStr, file); 
-    sprintf(gCmdStr,"\t\t\t<eapMschapv2/>\n");
-    fputs(gCmdStr, file);  
-    sprintf(gCmdStr,"\t\t\t<eapTls/>\n");
-    fputs(gCmdStr, file);             
-    sprintf(gCmdStr,"\t\t\t<eapFast/>\n");
-    fputs(gCmdStr, file);             
-    sprintf(gCmdStr,"\t\t\t<eapGtc/>\n");
-    fputs(gCmdStr, file);              
-    sprintf(gCmdStr,"\t\t\t<leap/>\n");
-    fputs(gCmdStr, file);              
-    sprintf(gCmdStr,"\t\t\t<eapPeap/>\n");
-    fputs(gCmdStr, file);             
-    sprintf(gCmdStr,"\t\t\t<eapTtls/>\n");
-    fputs(gCmdStr, file);           
-    sprintf(gCmdStr,"\t\t</allowedEapMethods>\n");
-    fputs(gCmdStr, file);           
-    sprintf(gCmdStr,"\t</networkPolicy>\n");
-    fputs(gCmdStr, file);
-
-	return 1;
-}
-int CiscoConfigGenerateLowerPart(FILE *file)
-{
-	if(file==NULL) 
-	{
-		printf("Error: can't Open Config file.\n");
-		return 1;
-	}
-	sprintf(gCmdStr,"\t<connectionSettings>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<connectionBehaviorAtLogon>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<attemptConnectionAfterUserLogon/>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t</connectionBehaviorAtLogon>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<validateWpaHandshake>true</validateWpaHandshake>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<defaultConnectionTimeout>40</defaultConnectionTimeout>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<defaultAssociationTimeout>3</defaultAssociationTimeout>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t</connectionSettings>\n");
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t<userControlPolicy>\n");
-    fputs(gCmdStr, file);          
-    sprintf(gCmdStr,"\t\t<allowedMedia>\n");
-    fputs(gCmdStr, file);            
-    sprintf(gCmdStr,"\t\t\t<wifi/>\n");
-    fputs(gCmdStr, file);         
-    sprintf(gCmdStr,"\t\t</allowedMedia>\n");
-    fputs(gCmdStr, file);           
-    sprintf(gCmdStr,"\t\t<allowVpn>false</allowVpn>\n");
-    fputs(gCmdStr, file);          
-//    sprintf(gCmdStr,"\t\t<allowRunScriptAfterConnect>false</allowRunScriptAfterConnect>\n");
-//    fputs(gCmdStr, file);           
-    sprintf(gCmdStr,"\t</userControlPolicy>\n");
-    fputs(gCmdStr, file);      
-    sprintf(gCmdStr,"</configuration>\n");
-    fputs(gCmdStr, file);
-	
-	return 1;
-}
-
-int CiscoEAPConfigGenerateUpperPart(FILE *file, char *ssid)
-{
-	if(file==NULL) 
-	{
-		printf("Error: can't Open Config file.\n");
-		return 1;
-	}
-
-    sprintf(gCmdStr,"\t<networks>\n",gnetIf);
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t<globalNetworks>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t<wifiNetwork>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t<displayName>%s</displayName>\n",ssid);
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t\t\t\t<connectionTimeout>40</connectionTimeout>\n");
-    fputs(gCmdStr, file);                     
-    sprintf(gCmdStr,"\t\t\t\t<ssid>\n");
-    fputs(gCmdStr, file);                 
-	sprintf(gCmdStr,"\t\t\t\t\t<name>%s</name>\n",ssid);
-    fputs(gCmdStr, file);                  
-    sprintf(gCmdStr,"\t\t\t\t</ssid>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t<associationTimeout>3</associationTimeout>\n");
-    fputs(gCmdStr, file);                     
-    sprintf(gCmdStr,"\t\t\t\t<CCX>\n");
-    fputs(gCmdStr, file);                 
-    sprintf(gCmdStr,"\t\t\t\t\t<Diagnostics>\n");
-    fputs(gCmdStr, file);                
-    sprintf(gCmdStr,"\t\t\t\t\t\t<AuthorizedProfile>false</AuthorizedProfile>\n");
-    fputs(gCmdStr, file);                 
-    sprintf(gCmdStr,"\t\t\t\t\t\t<Channel>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<EnableClientReporting>false</EnableClientReporting>\n");
-    fputs(gCmdStr, file);                         
-    sprintf(gCmdStr,"\t\t\t\t\t\t</Channel>\n");
-    fputs(gCmdStr, file);                            
-    sprintf(gCmdStr,"\t\t\t\t\t</Diagnostics>\n");
-    fputs(gCmdStr, file);                             
-    sprintf(gCmdStr,"\t\t\t\t\t<RadioMeasurement>\n");
-    fputs(gCmdStr, file);                         
-    sprintf(gCmdStr,"\t\t\t\t\t\t<disabled/>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t\t\t\t</RadioMeasurement>\n");
-    fputs(gCmdStr, file);                    
-    sprintf(gCmdStr,"\t\t\t\t</CCX>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t<authenticationNetwork>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<userAuthentication>\n");
-    fputs(gCmdStr, file);
-
-	return TRUE;
-
-}
-int CiscoEAPConfigGenerateLowerPart(FILE *file,char *encrType,char *secuType)
-{
-	if(file==NULL) 
-	{
-		printf("Error: can't Open Config file.\n");
-		return 1;
-	}
-    sprintf(gCmdStr,"\t\t\t\t\t</userAuthentication>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t<setting802.1x>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t<authPeriod>30</authPeriod>\n");
-    fputs(gCmdStr, file);	                   
-    sprintf(gCmdStr,"\t\t\t\t\t\t<heldPeriod>60</heldPeriod>\n");
-    fputs(gCmdStr, file);                    
-    sprintf(gCmdStr,"\t\t\t\t\t\t<startPeriod>30</startPeriod>\n");
-    fputs(gCmdStr, file);                          
-    sprintf(gCmdStr,"\t\t\t\t\t\t<maxStart>3</maxStart>\n");
-    fputs(gCmdStr, file);                          
-    sprintf(gCmdStr,"\t\t\t\t\t</setting802.1x>\n");
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t\t\t\t\t<associationMode>\n");
-    fputs(gCmdStr, file);
-
-	if(strncmp(secuType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t<wpa2>\n");
-		fputs(gCmdStr, file);    
-	}
-	else if (strncmp(secuType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t<wpa>\n");
-		fputs(gCmdStr, file);  
-	}
-	if((strcmp(encrType, "TKIP") == 0) || (strcmp(encrType, "tkip") == 0))
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t<encryption>TKIP</encryption>\n");
-		fputs(gCmdStr, file);   
-	}
-	else if ((strcmp(encrType, "AES-CCMP") == 0) || (strcmp(encrType, "aes-ccmp") == 0))
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t<encryption>AES</encryption>\n");
-		fputs(gCmdStr, file);   
-	}
-	if(strncmp(secuType, "wpa2", 4) == 0)
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t</wpa2>\n");
-		fputs(gCmdStr, file);    
-	}
-	else if (strncmp(secuType, "wpa", 3) == 0)
-	{
-		sprintf(gCmdStr,"\t\t\t\t\t\t</wpa>\n");
-		fputs(gCmdStr, file);  
-	}
-
-    sprintf(gCmdStr,"\t\t\t\t\t</associationMode>\n");
-    fputs(gCmdStr, file);                           
-    sprintf(gCmdStr,"\t\t\t\t</authenticationNetwork>\n");
-    fputs(gCmdStr, file);                               
-    sprintf(gCmdStr,"\t\t\t</wifiNetwork>\n");
-    fputs(gCmdStr, file);                         
-    sprintf(gCmdStr,"\t\t</globalNetworks>\n");
-    fputs(gCmdStr, file);                      
-    sprintf(gCmdStr,"\t\t<group>\n");
-    fputs(gCmdStr, file);    
-    sprintf(gCmdStr,"\t\t\t<groupName>Default</groupName>\n");
-    fputs(gCmdStr, file); 
-    sprintf(gCmdStr,"\t\t\t<allowUserToSeeScanlist>true</allowUserToSeeScanlist>\n");
-    fputs(gCmdStr, file);             
-    sprintf(gCmdStr,"\t\t</group>\n");
-    fputs(gCmdStr, file);          
-    sprintf(gCmdStr,"\t</networks>\n");
-    fputs(gCmdStr, file);
-
-	return TRUE;
+	return WFA_SUCCESS;
 }
 
 
-
-int wfaStaSetEapFASTCiscoSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-
-   caStaSetEapFAST_t *setFAST = (caStaSetEapFAST_t *)caCmdBuf;
-   char *ifname = setFAST->intf;
-   dutCmdResponse_t *setEapFastResp = &gGenericResp;
-   FILE *file;
-   int ret;
-
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapFASTCiscoSupplicant ...\n");
-
-    // stop the service
-   	sprintf(gCmdStr, "sc stop \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	file = fopen("c:\\windows\\temp\\tmp.xml", "w+");
-   //file = fopen("c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\userConfiguration.xml", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-	CiscoConfigGenerateUpperPart(file);
-	CiscoEAPConfigGenerateUpperPart(file,&(setFAST->ssid[0]));
-
-    sprintf(gCmdStr,"\t\t\t\t\t\t<authenticationMethod>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t<eapFast>\n");
-    fputs(gCmdStr, file);
-    sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<doNotValidateServerCertificate/>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<unprotectedIdentityPattern encryptContent=\"true\" >anonymous</unprotectedIdentityPattern>\n");
-    fputs(gCmdStr, file);
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<enableFastReconnect>\n");
-    fputs(gCmdStr, file);     
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<alwaysAttempt/>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</enableFastReconnect>\n");
-    fputs(gCmdStr, file);   
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<usePac>\n");
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<allowUnauthPacProvisioning>true</allowUnauthPacProvisioning>\n");
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<validateWithSpecificPacs/>\n");
-    fputs(gCmdStr, file); 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</usePac>\n");
-    fputs(gCmdStr, file);                       
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<enablePosture>true</enablePosture>\n");
-    fputs(gCmdStr, file);                                        
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<authMethods>\n");
-    fputs(gCmdStr, file);                                       
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<builtinMethods>\n");
-    fputs(gCmdStr, file);
-
-	if((strncmp(setFAST->innerEAP, "MSCHAP", 6) == 0) || (strncmp(setFAST->innerEAP, "mschap", 6) == 0))
-	{
-	// for MSCHAP
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t<authenticateWithPassword>\n");
-		fputs(gCmdStr, file);                                     
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<protectedIdentityPattern encryptContent=\"true\" >%s</protectedIdentityPattern>\n",setFAST->username);
-		fputs(gCmdStr, file);  
-
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<passwordSource>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t\t<passwordFromProfile encryptContent=\"true\" >%s</passwordFromProfile>\n",setFAST->passwd);
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t</passwordSource>\n");
-		fputs(gCmdStr, file);
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<methods>\n");
-		fputs(gCmdStr, file);                                                        
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t\t<eapMschapv2/>\n");
-		fputs(gCmdStr, file);                                                 
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t</methods>\n");
-		fputs(gCmdStr, file);                                              
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t</authenticateWithPassword>\n");
-		fputs(gCmdStr, file);
-	}
-	else if((strncmp(setFAST->innerEAP, "GTC", 3) == 0) || (strncmp(setFAST->innerEAP, "gtc", 3) == 0))
-	{
-	// for GTC
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t<authenticateWithToken>\n");
-		fputs(gCmdStr, file);                                     
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<protectedIdentityPattern encryptContent=\"true\" >%s</protectedIdentityPattern>\n",setFAST->username);
-		fputs(gCmdStr, file);                                   
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<tokenSource>\n");
-		fputs(gCmdStr, file);   
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t\t<passwordFromOtherToken/>\n");
-		fputs(gCmdStr, file);   
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t</tokenSource>\n");
-		fputs(gCmdStr, file);   	                                        
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t<methods>\n");
-		fputs(gCmdStr, file);                                               
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t\t<eapGtc/>\n");
-		fputs(gCmdStr, file);                                                 
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t\t</methods>\n");
-		fputs(gCmdStr, file);                                                  
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t\t</authenticateWithToken>\n");
-		fputs(gCmdStr, file);                                               
-	}                
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t</builtinMethods>\n");
-    fputs(gCmdStr, file);                                                 
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</authMethods>\n");
-    fputs(gCmdStr, file);                                             
-	sprintf(gCmdStr,"\t\t\t\t\t\t\t</eapFast>\n");
-    fputs(gCmdStr, file);                                             
-	sprintf(gCmdStr,"\t\t\t\t\t\t</authenticationMethod>\n");
-    fputs(gCmdStr, file); 
-
-	if((strncmp(setFAST->innerEAP, "MSCHAP", 6) == 0) || (strncmp(setFAST->innerEAP, "mschap", 6) == 0))
-	{
-		//for MSCHAP
-		sprintf(gCmdStr,"\t\t\t\t\t\t<collectionBehavior/>\n");
-		fputs(gCmdStr, file); 	
-	}
-	else if((strncmp(setFAST->innerEAP, "GTC", 3) == 0) || (strncmp(setFAST->innerEAP, "gtc", 3) == 0))
-	{
-		//for GTC
-		sprintf(gCmdStr,"\t\t\t\t\t\t<collectionBehavior>\n");
-		fputs(gCmdStr, file); 	
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t<withToken>\n");
-		fputs(gCmdStr, file); 	
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t<cachePinForTokenFromUser>\n");
-		fputs(gCmdStr, file); 	                        
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t\t<never/>\n");
-		fputs(gCmdStr, file); 	                             
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t\t</cachePinForTokenFromUser>\n");
-		fputs(gCmdStr, file); 	                                  
-		sprintf(gCmdStr,"\t\t\t\t\t\t\t</withToken>\n");
-		fputs(gCmdStr, file); 	                                    
-		sprintf(gCmdStr,"\t\t\t\t\t\t</collectionBehavior>\n");
-		fputs(gCmdStr, file);                     
-	}       
-
-
-	CiscoEAPConfigGenerateLowerPart(file,setFAST->encrptype,setFAST->keyMgmtType);
-	CiscoConfigGenerateLowerPart(file);
-  }
-  fclose(file);
-
-  // sign the xml file
-  sprintf(gCmdStr, "SignProfile.bat c:\\windows\\temp\\tmp.xml c:\\windows\\temp\\tmp1.xml");
-	system(gCmdStr);
-	Sleep(1000);
-  // copy to the destnationfolder
-	sprintf(gCmdStr, "copy /Y c:\\windows\\temp\\tmp1.xml \"c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\configuration.xml\"");
-	ret=system(gCmdStr);
-	Sleep(1000);
-		printf("Executing %s\n",gCmdStr);
-	printf("Return value is %d\n",ret);
-  /* start the service */
-
-	sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\"");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-
-   setEapFastResp->status = STATUS_COMPLETE;
-   wfaEncodeTLV(WFA_STA_SET_EAPFAST_RESP_TLV, 4, (BYTE *)setEapFastResp, respBuf);   
-   *respLen = WFA_TLV_HDR_LEN + 4;
-
-
-	return TRUE;
-}
-
-int wfaStaSetEapFASTWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-
-   caStaSetEapFAST_t *setFAST = (caStaSetEapFAST_t *)caCmdBuf;
-   char *ifname = setFAST->intf;
-   dutCmdResponse_t *setEapFastResp = &gGenericResp;
-   FILE *file;
-
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapFASTWpaSupplicant ...\n");
-
-   file = fopen("c:\\WFA\\WpaSupplicant\\wpa_supplicant.conf", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-	  sprintf(gCmdStr,"ctrl_interface=\\Device\\NPF_%s\n",gnetIf);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"ap_scan=2\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"network={\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tssid=\"%s\"\n",setFAST->ssid);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tkey_mgmt=WPA-EAP\n");
-	  fputs(gCmdStr, file);
-
-	  if(strncmp(setFAST->keyMgmtType, "wpa2", 4) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA2\n");
-		  fputs(gCmdStr, file);
-	//	  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		//  fputs(gCmdStr, file);
-	  } else if (strncmp(setFAST->keyMgmtType, "wpa", 3) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA\n");
-		  fputs(gCmdStr, file);
-//		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-//		  fputs(gCmdStr, file);
-	  }
-
-	  if((strncmp(setFAST->encrptype, "TKIP",4) == 0) || (strncmp(setFAST->encrptype, "tkip",4) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-		  fputs(gCmdStr, file);
-	  }
-	  else if((strncmp(setFAST->encrptype, "AES-CCMP",8) == 0) || (strncmp(setFAST->encrptype, "aes-ccmp",8) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		  fputs(gCmdStr, file);
-	  }
-
-	  sprintf(gCmdStr,"\teap=FAST\n");
-	  fputs(gCmdStr, file);
-
-// For WAP2 Test Plan 
-
-	  sprintf(gCmdStr,"\tpac_file=\"%s\"\n",setFAST->pacFileName);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tphase1=\"fast_provisioning=2\"\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tphase2=\"auth=%s\"\n",setFAST->innerEAP);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tanonymous_identity=\"anonymous\"\n");
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tidentity=\"%s\"\n",setFAST->username);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tpassword=\"%s\"\n",setFAST->passwd);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"}\n");
-  	  fputs(gCmdStr, file);
-
-  }
-  fclose(file);
-
-  /* start the service and stop the service */
-
-	sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-    printf("Executing %s\n",gCmdStr);
-    system(gCmdStr);
-
-	setEapFastResp->status = STATUS_COMPLETE;
-	wfaEncodeTLV(WFA_STA_SET_EAPFAST_RESP_TLV,4, (BYTE *)setEapFastResp, respBuf);   
-	*respLen = WFA_TLV_HDR_LEN + 4;
-
-	return TRUE;
-}
 int wfaStaSetEapFAST(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
 	caStaSetEapFAST_t *setFAST= (caStaSetEapFAST_t *)caCmdBuf;
 	char *ifname = setFAST->intf;
 	dutCmdResponse_t *setEapFastResp = &gGenericResp;
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
 
-	sprintf(gCmdStr, "wpa_cli -i %s disable_network 0", ifname);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", ifname, setFAST->ssid);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 identity '\"%s\"'", ifname, setFAST->username);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 password '\"%s\"'", ifname, setFAST->passwd);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 key_mgmt WPA-EAP", ifname);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 eap FAST", ifname);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 pac_file '\"%s/%s\"'", ifname, CERTIFICATES_PATH,     setFAST->pacFileName);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 anonymous_identity '\"anonymous\"'", ifname);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 phase1 '\"fast_provisioning=1\"'", ifname);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 phase2 '\"auth=%s\"'", ifname,setFAST->innerEAP);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s enable_network 0", ifname);
-	system(gCmdStr);
-
-	setEapFastResp->status = STATUS_COMPLETE;
-	wfaEncodeTLV(WFA_STA_SET_EAPFAST_RESP_TLV, 4, (BYTE *)setEapFastResp, respBuf);
-	*respLen = WFA_TLV_HDR_LEN + 4;
-
-#else
    switch(geSupplicant)
    {
 	   case eWindowsZeroConfig:
@@ -7054,120 +3339,15 @@ int wfaStaSetEapFAST(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 		   wfaEncodeTLV(WFA_STA_SET_EAPFAST_RESP_TLV, 4, (BYTE *)setEapFastResp, respBuf);   
 		   *respLen = WFA_TLV_HDR_LEN + 4;			
 		   break;
-	   case eMarvell:
-		   setEapFastResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPFAST_RESP_TLV, 4, (BYTE *)setEapFastResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;	
-		   break;
-	   case eWpaSupplicant:
-		   wfaStaSetEapFASTWpaSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eCiscoSecureClient:
-		   wfaStaSetEapFASTCiscoSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eOpen1x:
-		   //wfaStaSetEapSIMOpen1x(len,caCmdBuf,respLen,respBuf);
-		   break;
+	   
 	   default:
 		   setEapFastResp->status = STATUS_INVALID;
 		   wfaEncodeTLV(WFA_STA_SET_EAPFAST_RESP_TLV, 4, (BYTE *)setEapFastResp, respBuf);   
 		   *respLen = WFA_TLV_HDR_LEN + 4;	
 		   break;
    }
-#endif
 
-	return TRUE;
-}
-
-int wfaStaSetEapAKAWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
-{
-   caStaSetEapAKA_t *setAKA = (caStaSetEapAKA_t *)caCmdBuf;
-   char *ifname = setAKA->intf;
-   dutCmdResponse_t *setEapAkaResp = &gGenericResp;
-   FILE *file;
-
-   DPRINT_INFO(WFA_OUT, "Entering wfaStaSetEapAKAWpaSupplicant ...\n");
-
-   file = fopen("c:\\WFA\\WpaSupplicant\\wpa_supplicant.conf", "w+");
-  /* we create a empty file for reading and writing */
-
-  if(file==NULL) 
-  {
-    printf("Error: can't create file.\n");
-    return 1;
-  }
-  else 
-  {    
-	  sprintf(gCmdStr,"ctrl_interface=\\Device\\NPF_%s\n",gnetIf);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"ap_scan=2\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"network={\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tssid=\"%s\"\n",setAKA->ssid);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tkey_mgmt=WPA-EAP\n");
-	  fputs(gCmdStr, file);
-
-	  if(strncmp(setAKA->keyMgmtType, "wpa2", 4) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA2\n");
-		  fputs(gCmdStr, file);
-	//	  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		//  fputs(gCmdStr, file);
-	  } else if (strncmp(setAKA->keyMgmtType, "wpa", 3) == 0)
-	  {
-		  sprintf(gCmdStr,"\tproto=WPA\n");
-		  fputs(gCmdStr, file);
-//		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-//		  fputs(gCmdStr, file);
-	  }
-
-	  if((strncmp(setAKA->encrptype, "TKIP",4) == 0) || (strncmp(setAKA->encrptype, "tkip",4) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=TKIP\n");
-		  fputs(gCmdStr, file);
-	  }
-	  else if((strncmp(setAKA->encrptype, "AES-CCMP",8) == 0) || (strncmp(setAKA->encrptype, "aes-ccmp",8) == 0))
-	  {
-		  sprintf(gCmdStr,"\tpairwise=CCMP\n");
-		  fputs(gCmdStr, file);
-	  }
-
-	  sprintf(gCmdStr,"\teap=AKA\n");
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"\tphase1=\"result_ind=1\"\n");
-	  fputs(gCmdStr, file);
-// For WAP2 Test Plan 
-
-	  sprintf(gCmdStr,"\tidentity=\"%s\"\n",setAKA->username);
-	  fputs(gCmdStr, file);
-
-	  sprintf(gCmdStr,"\tpassword=\"%s\"\n",setAKA->passwd);
-	  fputs(gCmdStr, file);
-	  sprintf(gCmdStr,"}\n");
-  	  fputs(gCmdStr, file);
-  }
-  fclose(file);
-
-  /* start the service and stop the service */
-
-	sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-	sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-	system(gCmdStr);
-	printf("Executing %s\n",gCmdStr);
-
-    printf("Executing %s\n",gCmdStr);
-    system(gCmdStr);
-
-	setEapAkaResp->status = STATUS_COMPLETE;
-	wfaEncodeTLV(WFA_STA_SET_EAPAKA_RESP_TLV, 4, (BYTE *)setEapAkaResp, respBuf);   
-	*respLen = WFA_TLV_HDR_LEN + 4;
-
-	return TRUE;
+	return WFA_SUCCESS;
 }
 
 int wfaStaSetEapAKA(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
@@ -7176,41 +3356,6 @@ int wfaStaSetEapAKA(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	char *ifname = setAKA->intf;
 	dutCmdResponse_t *setEapAkaResp = &gGenericResp;
 
-#if !defined(_CYGWIN) && !defined(_WINDOWS)
-
-
-	sprintf(gCmdStr, "wpa_cli -i %s disable_network 0", ifname);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 ssid '\"%s\"'", ifname, setAKA->ssid);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 key_mgmt WPA-EAP", ifname);
-	system(gCmdStr);
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 proto WPA2", ifname);
-	system(gCmdStr);
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 proto CCMP", ifname);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 eap AKA", ifname);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 phase1 \"result_ind=1\");
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 identity '\"%s\"'", ifname, setAKA->username);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s set_network 0 password '\"%s\"'", ifname, setAKA->passwd);
-	system(gCmdStr);
-
-	sprintf(gCmdStr, "wpa_cli -i %s enable_network 0", ifname);
-	system(gCmdStr);
-
-	setEapAkaResp->status = STATUS_COMPLETE;
-	wfaEncodeTLV(WFA_STA_SET_EAPAKA_RESP_TLV, 4, (BYTE *)setEapAkaResp, respBuf);
-	*respLen = WFA_TLV_HDR_LEN + 4;
-#else
    switch(geSupplicant)
    {
 	   case eWindowsZeroConfig:
@@ -7218,30 +3363,15 @@ int wfaStaSetEapAKA(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 		   wfaEncodeTLV(WFA_STA_SET_EAPAKA_RESP_TLV, 4, (BYTE *)setEapAkaResp, respBuf);   
 		   *respLen = WFA_TLV_HDR_LEN + 4;			
 		   break;
-	   case eMarvell:
-		   setEapAkaResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPAKA_RESP_TLV, 4, (BYTE *)setEapAkaResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;	
-		   break;
-	   case eWpaSupplicant:
-		   wfaStaSetEapAKAWpaSupplicant(len,caCmdBuf,respLen,respBuf);
-		   break;
-	   case eCiscoSecureClient:
-		   setEapAkaResp->status = STATUS_INVALID;
-		   wfaEncodeTLV(WFA_STA_SET_EAPAKA_RESP_TLV, 4, (BYTE *)setEapAkaResp, respBuf);   
-		   *respLen = WFA_TLV_HDR_LEN + 4;	
-		   break;
-	   case eOpen1x:
-		   //wfaStaSetEapSIMOpen1x(len,caCmdBuf,respLen,respBuf);
-		   break;
+	   
 	   default:
 		   setEapAkaResp->status = STATUS_INVALID;
 		   wfaEncodeTLV(WFA_STA_SET_EAPAKA_RESP_TLV, 4, (BYTE *)setEapAkaResp, respBuf);   
 		   *respLen = WFA_TLV_HDR_LEN + 4;	
 		   break;
    }
-#endif
-	return TRUE;
+
+	return WFA_SUCCESS;
 }
 
 
@@ -7254,17 +3384,15 @@ int wfaStaSetSystime(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 
    sprintf(gCmdStr, "date %d-%d-%d",systime->month,systime->date,systime->year);
    system(gCmdStr);
-   printf("Executing %s\n",gCmdStr);
 
    sprintf(gCmdStr, "time %d:%d:%d", systime->hours,systime->minutes,systime->seconds);
    system(gCmdStr);
-   printf("Executing %s\n",gCmdStr);
 
    setSystimeResp->status = STATUS_COMPLETE;
    wfaEncodeTLV(WFA_STA_SET_SYSTIME_RESP_TLV, 4, (BYTE *)setSystimeResp, respBuf);
    *respLen = WFA_TLV_HDR_LEN + 4;
 
-   return TRUE;
+   return WFA_SUCCESS;
 }
 
 
@@ -7272,8 +3400,8 @@ void RefreshTaskbarNotificationArea()
 {
     HWND hNotificationArea;
     RECT r;
-	LONG x ;
-	LONG y ;
+	   LONG x ;
+	   LONG y ;
     GetClientRect(hNotificationArea = FindWindowEx(FW(FW(FW(NULL, L"Shell_TrayWnd"), L"TrayNotifyWnd"), L"SysPager"),NULL,L"ToolbarWindow32",L"Notification Area"),&r);
 ;    
     for ( x = 0; x < r.right; x += 5)
@@ -7284,6 +3412,7 @@ void RefreshTaskbarNotificationArea()
                 0,
                 (y << 16) + x);
 } 
+
 int wfaStaSet11n(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf) 
 {
 	
@@ -7528,7 +3657,7 @@ int wfaStaSet11n(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
         sprintf(gCmdStr, "cd %s & set_rxsp_stream /interface %s /value %u", WFA_CLI_CMD_DIR, intf, v11nParams->rxsp_stream);
 		printf("RUN: %s\n", gCmdStr);
         st = wfaExecuteCLI(gCmdStr);
-		printf("st %i\n", st);
+
 		if(st != 0)
 		{
 			v11nParamsResp->status = STATUS_ERROR;
@@ -7547,268 +3676,251 @@ int wfaStaSet11n(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 
 int wfaStaSetWireless(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf){
 	
-	caStaSetWireless_t * staWirelessParams = (caStaSetWireless_t *)caCmdBuf;
-	dutCmdResponse_t *staWirelessResp = &gGenericResp;
+	  caStaSetWireless_t * staWirelessParams = (caStaSetWireless_t *)caCmdBuf;
+	  dutCmdResponse_t *staWirelessResp = &gGenericResp;
 #ifndef _WINDOWS
-	char *intf = staWirelessParams->intf;
+	  char *intf = staWirelessParams->intf;
 #else
-	char *intf = aINTERFACE;
+	  char *intf = aINTERFACE;
 #endif
-	int st = 0;
+	  int st = 0;
 	
-	DPRINT_INFO(WFA_OUT, "START - wfaStaSetWireless \n");
-	if((staWirelessParams->noAck[NOACK_BE] == 0 || staWirelessParams->noAck[NOACK_BE] == 1) && 
-		(staWirelessParams->noAck[NOACK_BK] == 0 ||  staWirelessParams->noAck[NOACK_BK] == 1) &&
-		(staWirelessParams->noAck[NOACK_VI] == 0 || staWirelessParams->noAck[NOACK_VI] == 1) &&
-		(staWirelessParams->noAck[NOACK_VO] == 0 || staWirelessParams->noAck[NOACK_VO] == 0) )
-	{
-		sprintf(gCmdStr, "cd %s & set_noack /interface %s /mode %x %x %x %x", staWirelessParams->noAck[NOACK_BE], staWirelessParams->noAck[NOACK_BK], staWirelessParams->noAck[NOACK_VI], staWirelessParams->noAck[NOACK_VO]);
-        printf("RUN: %s\n", gCmdStr);
-        st = wfaExecuteCLI(gCmdStr);
-        printf("st %i\n", st);
-		if(st != 0)
-		{
-			staWirelessResp->status = STATUS_ERROR;
-			strcpy(staWirelessResp->cmdru.info, "set_noack failed");
-		}
-	}
+	  DPRINT_INFO(WFA_OUT, "START - wfaStaSetWireless \n");
+	  if((staWirelessParams->noAck[NOACK_BE] == 0 || staWirelessParams->noAck[NOACK_BE] == 1) && 
+		    (staWirelessParams->noAck[NOACK_BK] == 0 ||  staWirelessParams->noAck[NOACK_BK] == 1) &&
+		    (staWirelessParams->noAck[NOACK_VI] == 0 || staWirelessParams->noAck[NOACK_VI] == 1) &&
+		    (staWirelessParams->noAck[NOACK_VO] == 0 || staWirelessParams->noAck[NOACK_VO] == 0) )
+	 {
+		    sprintf(gCmdStr, "cd %s & set_noack /interface %s /mode %x %x %x %x", staWirelessParams->noAck[NOACK_BE], staWirelessParams->noAck[NOACK_BK], staWirelessParams->noAck[NOACK_VI], staWirelessParams->noAck[NOACK_VO]);
+      st = wfaExecuteCLI(gCmdStr);
+		    if(st != 0)
+		    {
+			      staWirelessResp->status = STATUS_ERROR;
+		      	strcpy(staWirelessResp->cmdru.info, "set_noack failed");
+	     }
+	 }
 
-	staWirelessResp->status = STATUS_COMPLETE;
-	wfaEncodeTLV(WFA_STA_SET_WIRELESS_RESP_TLV, 4, (BYTE *)staWirelessResp, respBuf);
-	*respLen = WFA_TLV_HDR_LEN + 4;
-	return TRUE;
+	 staWirelessResp->status = STATUS_COMPLETE;
+	 wfaEncodeTLV(WFA_STA_SET_WIRELESS_RESP_TLV, 4, (BYTE *)staWirelessResp, respBuf);
+ 	*respLen = WFA_TLV_HDR_LEN + 4;
+
+ 	return WFA_SUCCESS;
 }
 
 int wfaStaSendADDBA(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf){
-	caStaSetSendADDBA_t *staSendADDBA = (caStaSetSendADDBA_t *)caCmdBuf;
-	dutCmdResponse_t *staSendADDBAResp = &gGenericResp;
+	  caStaSetSendADDBA_t *staSendADDBA = (caStaSetSendADDBA_t *)caCmdBuf;
+  	dutCmdResponse_t *staSendADDBAResp = &gGenericResp;
 #ifndef _WINDOWS
-	char *intf = caStaSetSendADDBA->intf;
+	  char *intf = caStaSetSendADDBA->intf;
 #else
-	char *intf = aINTERFACE;
+	  char *intf = aINTERFACE;
 #endif
-	int st;
+	  int st;
 
-	DPRINT_INFO(WFA_OUT, "START - wfaStaSendADDBA \n"); 
+	  DPRINT_INFO(WFA_OUT, "START - wfaStaSendADDBA \n"); 
 
-	sprintf(gCmdStr, "cd %s & send_addba /interface %s /tid %i", WFA_CLI_CMD_DIR, intf, staSendADDBA->tid);
-	printf("RUN: %s\n", gCmdStr);
-	st = wfaExecuteCLI(gCmdStr);
+	  sprintf(gCmdStr, "cd %s & send_addba /interface %s /tid %i", WFA_CLI_CMD_DIR, intf, staSendADDBA->tid);
+  	st = wfaExecuteCLI(gCmdStr);
 
-	switch(st)
-	{
-	case 0:
-	   staSendADDBAResp->status = STATUS_COMPLETE;
-	   break;
-	case 1:
-		staSendADDBAResp->status = STATUS_ERROR;
-		break;
-	case 2:
-		staSendADDBAResp->status = STATUS_INVALID;
-		break;
-	}
+  	switch(st)
+  	{
+	      case 0:
+	      staSendADDBAResp->status = STATUS_COMPLETE;
+	      break;
+	      case 1:
+	     	staSendADDBAResp->status = STATUS_ERROR;
+	     	break;
+	      case 2:
+	     	staSendADDBAResp->status = STATUS_INVALID;
+		     break;
+  	}
 
-	wfaEncodeTLV(WFA_STA_SET_SEND_ADDBA_RESP_TLV, 4, (BYTE *)staSendADDBAResp, respBuf);
-	*respLen = WFA_TLV_HDR_LEN + 4;
-	return TRUE;
+  	wfaEncodeTLV(WFA_STA_SET_SEND_ADDBA_RESP_TLV, 4, (BYTE *)staSendADDBAResp, respBuf);
+  	*respLen = WFA_TLV_HDR_LEN + 4;
+
+  	return WFA_SUCCESS;
 }
 
 int wfaStaSetRIFS(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
-	caStaSetRIFS_t *setRIFS = (caStaSetRIFS_t *)caCmdBuf;
+	   caStaSetRIFS_t *setRIFS = (caStaSetRIFS_t *)caCmdBuf;
 #ifndef _WINDOWS
-	char *intf = setRIFS->intf;
+	   char *intf = setRIFS->intf;
 #else
-	char *intf = aINTERFACE;
+	   char *intf = aINTERFACE;
 #endif
 
     dutCmdResponse_t *staSetRIFSResp = &gGenericResp;
-	int st;
+	   int st;
 	
-	sprintf(gCmdStr, "cd %s & set_rifs_test /interface %s /action %s", WFA_CLI_CMD_DIR, intf, capstr[setRIFS->action]);
-	printf("RUN: %s\n", gCmdStr);
-	st = wfaExecuteCLI(gCmdStr);
+	   sprintf(gCmdStr, "cd %s & set_rifs_test /interface %s /action %s", WFA_CLI_CMD_DIR, intf, capstr[setRIFS->action]);
+	   st = wfaExecuteCLI(gCmdStr);
 
-	switch(st)
-	{
-	case 0:
-	   staSetRIFSResp->status = STATUS_COMPLETE;
-	   break;
-	case 1:
-		staSetRIFSResp->status = STATUS_ERROR;
-		break;
-	case 2:
-		staSetRIFSResp->status = STATUS_INVALID;
-		break;
-	}
+	   switch(st)
+	   {
+	       case 0:
+	       staSetRIFSResp->status = STATUS_COMPLETE;
+	       break;
+	       case 1:
+	      	staSetRIFSResp->status = STATUS_ERROR;
+		      break;
+	       case 2:
+	      	staSetRIFSResp->status = STATUS_INVALID;
+	      	break;
+   	}
 
-	wfaEncodeTLV(WFA_STA_SET_RIFS_TEST_RESP_TLV, 4, (BYTE *)staSetRIFSResp, respBuf);
-	*respLen = WFA_TLV_HDR_LEN + 4;
+	   wfaEncodeTLV(WFA_STA_SET_RIFS_TEST_RESP_TLV, 4, (BYTE *)staSetRIFSResp, respBuf);
+	   *respLen = WFA_TLV_HDR_LEN + 4;
 
-	return TRUE;
-
+	   return WFA_SUCCESS;
 }
 
 int wfaStaSendCoExistMGMT(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
-	caStaSendCoExistMGMT_t *sendMGMT = (caStaSendCoExistMGMT_t *)caCmdBuf;
+	    caStaSendCoExistMGMT_t *sendMGMT = (caStaSendCoExistMGMT_t *)caCmdBuf;
 #ifndef _WINDOWS
-	char *intf = sendMGMT->intf;
+	    char *intf = sendMGMT->intf;
 #else
-	char *intf = aINTERFACE;
+	    char *intf = aINTERFACE;
 #endif
-    dutCmdResponse_t *staSendMGMTResp = &gGenericResp;
-	int st = 0;
+     dutCmdResponse_t *staSendMGMTResp = &gGenericResp;
+	    int st = 0;
 	
-	sprintf(gCmdStr, "cd %s & send_coexist_mgmt /interface %s /type %s /value %s", WFA_CLI_CMD_DIR, intf, sendMGMT->type, sendMGMT->value);
-	st = wfaExecuteCLI(gCmdStr);
-	printf("%s\n", gCmdStr);
+	    sprintf(gCmdStr, "cd %s & send_coexist_mgmt /interface %s /type %s /value %s", WFA_CLI_CMD_DIR, intf, sendMGMT->type, sendMGMT->value);
+	    st = wfaExecuteCLI(gCmdStr);
 
-	switch(st)
-	{
-	case 0:
-	   staSendMGMTResp->status = STATUS_COMPLETE;
-	   break;
-	case 1:
-		staSendMGMTResp->status = STATUS_ERROR;
-		break;
-	case 2:
-		staSendMGMTResp->status = STATUS_INVALID;
-		break;
-	}
-	wfaEncodeTLV(WFA_STA_SEND_COEXIST_MGMT_RESP_TLV, 4, (BYTE *)staSendMGMTResp, respBuf);
-	*respLen = WFA_TLV_HDR_LEN + 4;
+    	switch(st)
+	    {
+	        case 0:
+	        staSendMGMTResp->status = STATUS_COMPLETE;
+	        break;
+	        case 1:
+	       	staSendMGMTResp->status = STATUS_ERROR;
+	       	break;
+        	case 2:
+		       staSendMGMTResp->status = STATUS_INVALID;
+	       	break;
+	    }
+	    wfaEncodeTLV(WFA_STA_SEND_COEXIST_MGMT_RESP_TLV, 4, (BYTE *)staSendMGMTResp, respBuf);
+	    *respLen = WFA_TLV_HDR_LEN + 4;
 
-	return TRUE;
+	    return WFA_SUCCESS;
+}
 
+extern int progSet;
+
+void _setProg(char *progname)
+{
+     if(strcmp(progname, "VHT") ==0)
+         progSet = eDEF_VHT;
+     else if(strcmp(progname, "11n") ==0)
+         progSet = eDEF_11N;
+     else
+         progSet = 0;
 }
 
 int wfaStaResetDefault(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
     caStaResetDefault_t *reset = (caStaResetDefault_t *)caCmdBuf;
-#ifndef _WINDOWS
-	char *intf = reset->intf;
-#else
-	char *intf = aINTERFACE;
-#endif
-	char *prog = reset->set;
+   	char *intf = aINTERFACE;
+    char *prog = reset->set;
     dutCmdResponse_t *staResetResp = &gGenericResp;
-	int st;
+    int st;
 
-	sprintf(gCmdStr, "cd %s & reset_default /interface %s /set %s", WFA_CLI_CMD_DIR, intf, prog);
-	st = wfaExecuteCLI(gCmdStr);
+    DPRINT_INFOL(WFA_OUT, "Entering ...\n");
+    sprintf(gCmdStr, "cd %s & reset_default /interface %s /set %s", WFA_CLI_CMD_DIR, intf, prog);
+    DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+    st = wfaExecuteCLI(gCmdStr);
+
+    DPRINT_INFOL(WFA_OUT, "Program Name-> %s\n", prog);
+
+    _setProg(prog);
+
+	DPRINT_INFOL(WFA_OUT, " After setProg - Program Name-> %i\n", progSet);
+
+	progSet = eDEF_VHT;
+
+	DPRINT_INFOL(WFA_OUT, "Final Program Name-> %i\n", progSet);
 
     switch(st)
-	{
-	case 0:
-	   staResetResp->status = STATUS_COMPLETE;
+    {
+       case 0:
+       staResetResp->status = STATUS_COMPLETE;
+       break;
+       case 1:
+       staResetResp->status = STATUS_ERROR;
+       break;
+       case 2:
+       staResetResp->status = STATUS_INVALID;
 	   break;
-	case 1:
-		staResetResp->status = STATUS_ERROR;
-		break;
-	case 2:
-		staResetResp->status = STATUS_INVALID;
-		break;
-	}
+    }
 
     wfaEncodeTLV(WFA_STA_RESET_DEFAULT_RESP_TLV, 4, (BYTE *)staResetResp, respBuf);
-	*respLen = WFA_TLV_HDR_LEN + 4;
+    *respLen = WFA_TLV_HDR_LEN + 4;
 
-	return TRUE;
+    DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+    return WFA_SUCCESS;
 }
 
 int wfaStaDisconnect(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
-    dutCommand_t *disc = (dutCommand_t *)caCmdBuf;
-	char *intf = disc->intf;
-	dutCmdResponse_t *staDiscResp = &gGenericResp;
-	int ret,i;
+   dutCommand_t *disc = (dutCommand_t *)caCmdBuf;
+   char *intf = disc->intf;
+   dutCmdResponse_t *staDiscResp = &gGenericResp;
    FILE *tmpfile = NULL;
-   char result[32],filename[256];
-   char string[64],Interfacename[64];
-	// stop the supplicant
-    switch(geSupplicant)
-	{
-	case  eWindowsZeroConfig :
-//		sprintf(gCmdStr, "FOR /F \"tokens=2 delims=/\" %s IN ('wifi_config.exe -aps') DO (wifi_config.exe -delete %s)","%i","%i");
+   char string[64],Interfacename[64], intfile[128], tfile[128];
 
-		tmpfile = fopen("c:\\wfa\\WfaEndpoint\\Interface.txt", "r");
-		if(tmpfile == NULL)
-		{
-			printf("\n Error opening the interface file \n");
-		}
-		else
-		{
-			for(;;)
-			{
-				if(fgets(string, 256, tmpfile) == NULL)
-					break; 
-			}
-			fclose(tmpfile);
+   DPRINT_INFOL(WFA_OUT, "Entering wfaStaDisconnect ...\n");
+	
+   sprintf(intfile, "%s\\WfaEndpoint\\Interface.txt", sigmaPath);
+   switch(geSupplicant)
+   {
+      case  eWindowsZeroConfig :
+      tmpfile = fopen(intfile, "r");
+      if(tmpfile == NULL)
+      {
+          DPRINT_ERR(WFA_ERR, "\n Error opening the interface file \n");
+      }
+	  else
+	  {
+	      for(;;)
+	      {
+	          if(fgets(string, 256, tmpfile) == NULL)
+	           	break; 
+	      }
+	      fclose(tmpfile);
 
-			if(strncmp(string, "IFNAME", 6) == 0)
-			  {
-				 char *str;
-				 str = strtok(string, "\"");
-				 str = strtok(NULL, "\"");
-				 if(str != NULL)
-				 {
-					 strcpy(&Interfacename[0],str);
-				 }
+          if(strncmp(string, "IFNAME", 6) == 0)
+          {
+              char *str;
+              str = strtok(string, "\"");
+              str = strtok(NULL, "\"");
+              if(str != NULL)
+              {
+	              strcpy(&Interfacename[0],str);
+              }
+	   	  }
+	  }
+	  sprintf(gCmdStr, "del /F /Q %s", tfile);
 
-			  }
+	  //sprintf(gCmdStr, "netsh wlan delete profile name=\"*\" interface=\"%s\"",&Interfacename[0]);
+      sprintf(gCmdStr, "netsh wlan delete profile name=\"*\"");
+	  system(gCmdStr);
 
-		}
-		sprintf(gCmdStr, "del /F c:\\WFA\\temp.txt");
-       	//printf("Executing %s\n",gCmdStr);
+	  DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
+	  //ret = system(gCmdStr);
+	  break;
+	
+	  default :
+	  DPRINT_ERR(WFA_ERR, " \n Unknown Supplicant in Disconnect function");
+   }
 
-		sprintf(gCmdStr, "netsh wlan delete profile name=\"*\" interface=\"%s\"",&Interfacename[0]);
-       	//printf("Executing %s\n",gCmdStr);
-	   	system(gCmdStr);
+   staDiscResp->status = STATUS_COMPLETE;
+   wfaEncodeTLV(WFA_STA_DISCONNECT_RESP_TLV, 4, (BYTE *)staDiscResp, respBuf);
+   *respLen = WFA_TLV_HDR_LEN + 4;
 
-		DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		ret = system(gCmdStr);
-		break;
-	case eCiscoSecureClient:
-		sprintf(gCmdStr, "sc stop \"Cisco Secure Services Client\"");
-		system(gCmdStr);
-		printf("Executing %s\n",gCmdStr);
-		sprintf(gCmdStr, "del /F /Q c:\\Documents\ and\ Settings\\All\ Users\\Application\ Data\\Cisco\\Cisco Secure Services Client\\system\\configuration.xml");
-		ret=system(gCmdStr);
-		printf("Executing %s\n",gCmdStr);
-		printf("Return value is %d\n",ret);
-		/* start the service */
-		sprintf(gCmdStr, "sc start \"Cisco Secure Services Client\"");
-		system(gCmdStr);
-		printf("Executing %s\n",gCmdStr);
-		break;
-	case eWpaSupplicant:
-		sprintf(gCmdStr, "sc stop WFA_WpaSupplicant_Service");
-		DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		ret = system(gCmdStr);
-		DPRINT_INFO(WFA_OUT,"Retun value: %d\n",ret);
-
-		sprintf(gCmdStr, " copy /Y NUL c:\\wfa\\wpa_supplicant.conf");
-		ret=system(gCmdStr);
-		printf("Executing %s\n",gCmdStr);
-		printf("Return value is %d\n",ret);
-
-		sprintf(gCmdStr, "sc start WFA_WpaSupplicant_Service");
-		DPRINT_INFO(WFA_OUT, "Executing %s\n",gCmdStr);
-		ret = system(gCmdStr);
-		DPRINT_INFO(WFA_OUT,"Return value: %d\n",ret);
-
-		break;
-	default :
-		printf(" \n Unknown Supplicant in Disconnect function");
-	}
-
-	staDiscResp->status = STATUS_COMPLETE;
-
-    wfaEncodeTLV(WFA_STA_DISCONNECT_RESP_TLV, 4, (BYTE *)staDiscResp, respBuf);
-	*respLen = WFA_TLV_HDR_LEN + 4;
-
-    return TRUE;
+    DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+    return WFA_SUCCESS;
 }
 
 
@@ -7820,8 +3932,10 @@ int wfaExecuteCLI(char *CLI)
 
    system(CLI);
 
+   Sleep(1000);
+
    retstr = getenv("WFA_CLI_STATUS");
-   printf("cli status %s\n", retstr);
+   DPRINT_INFOL(WFA_OUT, "cli status %s\n", retstr);
    return atoi(retstr);
 }
 
@@ -7856,134 +3970,145 @@ int wfaStaReassociate(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
     wfaEncodeTLV(WFA_STA_REASSOCIATE_RESP_TLV, 4, (BYTE *)staReAssocResp, respBuf);
 	*respLen = WFA_TLV_HDR_LEN + 4;
 
-	return TRUE;
+	return WFA_SUCCESS;
 }
 
 int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
-
 	char cmdName[32];
-	char * pcmdStr,*str;
-	int st;
-	char CmdStr[WFA_CMD_STR_SZ];
-	FILE *wfaCliFd;
+  	char * pcmdStr,*str;
+  	int st;
+  	char CmdStr[WFA_CMD_STR_SZ];
+	FILE *wfaCliFd=NULL;
 	char wfaCliBuff[64];
-	char retstr[256];
+	char retstr[32], clfile[128];
 	int CmdReturnFlag;
+    int ret = 0;
 
 	caStaCliCmdResp_t infoResp;
 
-	printf("\n Entry wfaStaCliCommand... ");
+	DPRINT_INFOL(WFA_OUT, "\nEntry wfaStaCliCommand... \n");
 
-	printf("The command Received: %s",caCmdBuf);
+	DPRINT_INFOL(WFA_OUT, "\nThe command Received: %s\n",caCmdBuf);
 
 	memcpy(cmdName, strtok_r((char *)caCmdBuf, ",", (char **)&pcmdStr), 32);
-
 	sprintf(CmdStr, "%s",cmdName);
 
+    sprintf(clfile, "%s\\WfaEndpoint\\wfa_cli.txt", sigmaPath);
 
+    DPRINT_INFOL(WFA_OUT, "===================cli file %s ==========================\n", clfile);
 
-
-	for(;;)
-	{
-		str = strtok_r(NULL, ",", &pcmdStr);
-		if(str == NULL || str[0] == '\0')
-			break;
+    for(;;)
+    {
+        str = strtok_r(NULL, ",", &pcmdStr);
+	    if(str == NULL || str[0] == '\0')
+        {
+           DPRINT_INFOL(WFA_OUT, "No more string\n");
+		   break;
+        }
 		else
 		{
-			sprintf(CmdStr, "%s /%s",CmdStr,str);
-			str = strtok_r(NULL, ",", &pcmdStr);
-			sprintf(CmdStr, "%s %s",CmdStr,str);
+		    sprintf(CmdStr, "%s /%s",CmdStr,str);
+		    str = strtok_r(NULL, ",", &pcmdStr);
+		    sprintf(CmdStr, "%s %s",CmdStr,str);
 		}
 	}
+
+    DPRINT_INFO(WFA_OUT, "CMDSTR ===========  %s ==================\n", CmdStr);
+    // try
+    Sleep(3000);
 
 	CmdReturnFlag =0;
 	// check the return process
-	wfaCliFd=fopen("c:\\wfa\\WfaEndpoint\\wfa_cli.txt","r");
+	wfaCliFd=fopen(clfile,"r");
 	if(wfaCliFd!= NULL)
 	{
-		while(fgets(wfaCliBuff, 64, wfaCliFd) != NULL)
-		{
-			//printf("\nLine read from CLI file : %s",wfaCliBuff);
-			if(ferror(wfaCliFd))
-				break;
-			str=strtok(wfaCliBuff,"-");
-			if(strcmp(str,cmdName) == 0)
-			{
-				str=strtok(NULL,",");
-				//printf("\n The str: %s Check\n",str);
-				if(strcmp(str,"TRUE") == 0)
-					CmdReturnFlag =1;
-				break;
-			}
-		}
-		fclose(wfaCliFd);
-
-	}
-
-
-	//printf("\n Command Return Flag : %d",CmdReturnFlag);
-	st = 1;
-
-	wfaClearEnvVal("WFA_CLI_STATUS");
-	wfaClearEnvVal("WFA_CLI_RETURN");
-
-	sprintf(gCmdStr, "cd %s & %s", WFA_CLI_CMD_DIR, CmdStr);
-    system(gCmdStr);
-    //printf("CLI Command %s\n", gCmdStr);
-
-	Sleep(2000);
-    //printf("\nbefore wfaGetEnvVal\n");
-    //printf("CLI status %d\n",st);
-	
-	memset(&retstr[0],'\0',256);
-    wfaGetEnvVal("WFA_CLI_STATUS",&retstr[0],sizeof(retstr));
-    //printf("cli status %s\n", retstr);
-	if(strlen(retstr) > 0)
-	    st = atoi(retstr);
-
-    //printf("\nBefore deciding the rertun status\n");
-    //printf("CLI status %d\n",st);
-
-    infoResp.resFlag=CmdReturnFlag;
-
-	switch(st)
-	{
-	case 0:
-	   infoResp.status = STATUS_COMPLETE;
-	   if (CmdReturnFlag)
+       DPRINT_INFOL(WFA_OUT, "Searching CLI Command %s\n", cmdName);
+	   while(fgets(wfaCliBuff, 64, wfaCliFd) != NULL)
 	   {
-			memset(&retstr[0],'\0',256);
-			//printf("cli status beforoe %s**** len%d**** \n", retstr,strlen(retstr));
-			wfaGetEnvVal("WFA_CLI_RETURN",&retstr[0],sizeof(retstr));
-			//printf("cli status %s**** len%d**** \n", retstr,strlen(retstr));
-			memset(&infoResp.result[0],'\0',WFA_CLI_CMD_RESP_LEN);
-			if(retstr != NULL)
-			{
-				strncpy(&infoResp.result[0], retstr,(strlen(retstr) < WFA_CLI_CMD_RESP_LEN ) ? strlen(retstr) : (WFA_CLI_CMD_RESP_LEN-1) );
-				//printf("Return CLI result to CA: %s****\n", &infoResp.result[0]);			
-			}
-			else
-				strcpy(&infoResp.result[0], "ENV_VAR_NOT_DEFINED");
+	       if(ferror(wfaCliFd))
+	          break;
 
+	       str=strtok(wfaCliBuff,"-");
+	       if(strcmp(str,cmdName) == 0)
+	       {
+	           str=strtok(NULL,",");
+			   if(strcmp(str,"TRUE") == 0)
+               {
+                    DPRINT_INFOL(WFA_OUT, "Found supported CLI Command %s\n",cmdName); 
+                    CmdReturnFlag =1;
+			        break;
+			   }
+		   }
+	     
 	   }
+       fclose(wfaCliFd);
+   }
 
+   st = 1;
+
+   wfaClearEnvVal("WFA_CLI_STATUS");
+   wfaClearEnvVal("WFA_CLI_RETURN");
+
+   sprintf(gCmdStr, "cd %s & echo CLI: %s & %s", WFA_CLI_CMD_DIR, CmdStr, CmdStr);
+   ret = system(gCmdStr);
+   DPRINT_INFOL(WFA_OUT, "\nRUN-> %s with status %i\n", gCmdStr, ret);
+
+   Sleep(3000);
 	
+   memset(&retstr[0],'\0',32);
+   int ckcnt = 1;
+   while(retstr[0] =='\0' && ckcnt > 0)
+   {
+       wfaGetEnvVal("WFA_CLI_STATUS",&retstr[0],sizeof(retstr));
+       ckcnt--;
+       Sleep(1000);
+   }
+    
+   DPRINT_INFOL(WFA_OUT, "\nCLI CmdStr %s status %s\n", CmdStr, retstr);
+   if(strlen(retstr) > 0)
+      st = atoi(retstr);
+
+   DPRINT_INFOL(WFA_OUT, "\nBefore deciding the rertun status\n");
+   DPRINT_INFOL(WFA_OUT, "CLI status %d\n",st);
+
+   infoResp.resFlag=CmdReturnFlag;
+
+   switch(st)
+   {
+       case 0:
+       infoResp.status = STATUS_COMPLETE;
+       if (CmdReturnFlag)
+       {
+           memset(&retstr[0],'\0',32);
+           DPRINT_INFOL(WFA_OUT, "cli status beforoe %s**** len%d**** \n", retstr,strlen(retstr));
+           wfaGetEnvVal("WFA_CLI_RETURN",&retstr[0],sizeof(retstr));
+           DPRINT_INFOL(WFA_OUT, "cli status %s**** len%d**** \n", retstr,strlen(retstr));
+           memset(&infoResp.result[0],'\0',WFA_CLI_CMD_RESP_LEN);
+           if(retstr != NULL)
+           {
+               strncpy(&infoResp.result[0], retstr,(strlen(retstr) < WFA_CLI_CMD_RESP_LEN ) ? strlen(retstr) : (WFA_CLI_CMD_RESP_LEN-1) );
+               DPRINT_INFOL(WFA_OUT, "Return CLI result to CA: %s****\n", &infoResp.result[0]);			
+           }
+           else
+               strcpy(&infoResp.result[0], "ENV_VAR_NOT_DEFINED");
+	   }
+       break;
+
+	   case 1:
+	   infoResp.status = STATUS_ERROR;
+       DPRINT_INFOL(WFA_OUT, "CLI STATUS ERROR\n");
 	   break;
-	case 1:
-		infoResp.status = STATUS_ERROR;
-		break;
-	case 2:
-		infoResp.status = STATUS_INVALID;
-		break;
-	}
+	   case 2:
+	   infoResp.status = STATUS_INVALID;
+       DPRINT_INFOL(WFA_OUT, "CLI STATUS INVALID\n");
+	   break;
+   }
 
    wfaEncodeTLV(WFA_STA_CLI_CMD_RESP_TLV, sizeof(infoResp), (BYTE *)&infoResp, respBuf);   
    *respLen = WFA_TLV_HDR_LEN + sizeof(infoResp);
 
-   return TRUE;
-
-	
+   return WFA_SUCCESS;
 }
 
 
@@ -7991,55 +4116,62 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 
 int wfaClearEnvVal(char * in_value)
 {
-	sprintf(gCmdStr, "reg delete HKEY_CURRENT_USER\\Environment /v %s /f",in_value);
+    sprintf(gCmdStr, "reg delete HKEY_CURRENT_USER\\Environment /v %s /f",in_value);
+    DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
     system(gCmdStr);
     //printf("CLI Command %s\n", gCmdStr);
 
-	return TRUE;
+	return WFA_SUCCESS;
 }
 
 int wfaGetEnvVal(char * in_value,char * out_value,int size)
 {
-
    FILE *file_hd;
    char *str;
+   char tfile[128], envfile[128];
 
-   printf("Entry wfaGetEnvVal.. ");
+   DPRINT_INFOL(WFA_OUT, "\nEntry wfaGetEnvVal.. ");
 
+   sprintf(tfile, "%s\\Temp\\temp.txt", sigmaPath);
+   sprintf(envfile, "%s\\Temp\\env_val.txt", sigmaPath);
    // get the status
-		sprintf(gCmdStr, "del /F /Q C:\\WFA\\temp.txt && del /F /Q C:\\WFA\\env_val.txt");
-		system(gCmdStr);
+   sprintf(gCmdStr, "del /F /Q %s && del /F /Q %s", tfile, envfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+   system(gCmdStr);
 
 
-	sprintf(gCmdStr, "reg query HKEY_CURRENT_USER\\Environment /v %s > C:\\WFA\\temp.txt",in_value);
-    system(gCmdStr);
+   sprintf(gCmdStr, "reg query HKEY_CURRENT_USER\\Environment /v %s > %s",in_value, tfile);
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+   system(gCmdStr);
    // printf("CLI Command %s\n", gCmdStr);
 
-	sprintf(gCmdStr, "FOR /F \"tokens=3,* delims= \" %s in ('findstr \"%s\" c:\\WFA\\temp.txt') do @echo %s %s > C:\\WFA\\env_val.txt","%i",in_value,"%i","%j" );
-    system(gCmdStr);
+   sprintf(gCmdStr, "FOR /F \"tokens=3,* delims= \" %s in ('findstr \"%s\" %s') do @echo %s %s > %s","%i",in_value,tfile, "%i","%j", envfile );
+   DPRINT_INFOL(WFA_OUT, "RUN-> %s\n", gCmdStr);
+   system(gCmdStr);
     //printf("CLI Command %s\n", gCmdStr);
 
-	// get the status
-	file_hd = fopen("c:\\WFA\\env_val.txt","r");
-	if(file_hd != NULL && !ferror(file_hd))
-	{
-		fgets(gCmdStr,WFA_CMD_STR_SZ,file_hd);
-		str=strtok(gCmdStr," ");
-		strcpy(out_value,str);
-		//printf("In GetEnv token %s*** The return value:%s***\n",str,out_value);
-		str=strtok(NULL," ");
-		if(strlen(str) >2)
-			sprintf(&out_value[strlen(out_value)]," %s",str);
-		//printf("In GetEnv token %s**** The return value:%s***\n",str,out_value);
-		fclose(file_hd);
-	}
-	else
-	{
-		out_value = NULL;
-	}
+	  // get the status
+   file_hd = fopen(envfile,"r");
+   if(file_hd != NULL && !ferror(file_hd))
+   {
+      fgets(gCmdStr,WFA_CMD_STR_SZ,file_hd);
+      str=strtok(gCmdStr," ");
+      strcpy(out_value,str);
+      DPRINT_INFOL(WFA_OUT, "In GetEnv token %s*** The return value:%s***\n",str,out_value);
+      str=strtok(NULL," ");
+      if(strlen(str) >2)
+	      sprintf(&out_value[strlen(out_value)]," %s",str);
 
-	printf("Exit wfaGetEnvVal.. ");
-	return 1;
+      DPRINT_INFOL(WFA_OUT, "In GetEnv token %s**** The return value:%s***\n",str,out_value);
+      fclose(file_hd);
+  	}
+    else
+    {
+	    out_value = NULL;
+    }
+
+	  DPRINT_INFOL(WFA_OUT, "Completing ... ");
+	  return WFA_SUCCESS;
 }
 
 

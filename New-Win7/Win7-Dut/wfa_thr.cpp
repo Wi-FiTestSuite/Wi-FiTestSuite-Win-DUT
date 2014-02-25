@@ -2,7 +2,6 @@
 /****************************************************************************
  *  (c) Copyright 2007 Wi-Fi Alliance.  All Rights Reserved
  *
- *  Author: Sandeep Mohan Bharadwaj	Email:sbharadwaj@wi-fi.org
  *
  *  LICENSE
  *
@@ -120,7 +119,7 @@
 
 //#include "iphdr.h"
 
-#define NOT_SPECIFIED			0xFFFF
+#define NOT_SPECIFIED   0xFFFF
 
 #else
 #include <pthread.h>
@@ -142,10 +141,11 @@
 #include "wfa_sock.h"
 #include "wfa_rsp.h"
 #include "wfa_wmmps.h"
+#include "wfa_debug.h"
 
 
 
-
+extern int firstPktCnt;
 
 /*
  * external global thread sync variables
@@ -163,6 +163,8 @@ extern DWORD WINAPI wfa_traffic_resend_results_thread(void *direction);
 
 extern int        tgSockfds[WFA_MAX_TRAFFIC_STREAMS];
 
+extern int hasRecv;
+
 //extern tgStream_t *gStreams;
 extern unsigned short wfa_defined_debug;
 extern DWORD recvThr;
@@ -170,6 +172,9 @@ extern int tgWMMTestEnable;
 int num_stops=0;
 int num_hello=0;
 double gtgPktRTDelay = 0xFFFFFFFF;
+
+extern int totalTranPkts, sentTranPkts;
+extern BOOL gtgTransac;
 
 int mainSendThread;
 
@@ -196,10 +201,6 @@ extern int bigEndianBuff2Int(char *buff);
 
 int nsent;
 
-//extern HANDLE              hStdOut;
-
-
-
 //
 // Function: ResolveAddress
 //
@@ -221,17 +222,14 @@ struct addrinfo *ResolveAddress(char *addr, char *port, int af, int type, int pr
     hints.ai_socktype = type;
     hints.ai_protocol = proto;
 
-    rc = getaddrinfo(
-            addr,
-            port,
-           &hints,
-           &res
-            );
+    DPRINT_INFOL(WFA_OUT, "receiving port %s\n", port);
+    rc = getaddrinfo(addr, port, &hints, &res);
     if (rc != 0)
     {
-    	printf("Invalid address %s\n", addr);
+        DPRINT_ERR(WFA_ERR, "Invalid address %s\n", addr);
         return NULL;
     }
+
     return res;
 }
 
@@ -239,157 +237,154 @@ struct addrinfo *ResolveAddress(char *addr, char *port, int af, int type, int pr
 
 //
 // Routine: 
-//	DeleteFlow
+// DeleteFlow
 // Description:
-//	Deletes the flow and its member variables
+// Deletes the flow and its member variables
 // Arguments:
-//	[in] pFlow -
-//		ptr to the existing Flow struct.
+// [in] pFlow -
+//  ptr to the existing Flow struct.
 //            
 //******************************************************************************
-BOOL DeleteFlow (IN	PTC_GEN_FLOW	*pFlow)
+BOOL DeleteFlow (IN PTC_GEN_FLOW *pFlow)
 {
-	if(pFlow == NULL || *pFlow == NULL)
-	{
-		return TRUE;
-	}
+   if(pFlow == NULL || *pFlow == NULL)
+   {
+       return TRUE;
+   }
 
-	free(*pFlow);
-	*pFlow = NULL;
+   free(*pFlow);
+   *pFlow = NULL;
 
-	return TRUE;
+   return TRUE;
 }
 
 //
 // Routine: 
-//	CreateFlow
+// CreateFlow
 // Description:
-//	The function returns a tc flow in ppTcFlowObj on success 
+// The function returns a tc flow in ppTcFlowObj on success 
 // Arguments:
-//	[in,out] ppTcFlowObj -
-//		double ptr to Flow struct in which the function returns the flow.
-//	[in] DSCPValue -
-//		dscp value for the flow
-//	[in] OnePValue - 
-//		802.1p value for the flow
-//	[in] ThrottleRate -
-//		throttle rate for the flow
+// [in,out] ppTcFlowObj -
+//  double ptr to Flow struct in which the function returns the flow.
+// [in] DSCPValue -
+//  dscp value for the flow
+// [in] OnePValue - 
+//  802.1p value for the flow
+// [in] ThrottleRate -
+//  throttle rate for the flow
 // Return:
-//	TRUE if file creating is successful
-//	FALSE if creating file failed.
+// TRUE if file creating is successful
+// FALSE if creating file failed.
 //            
 //******************************************************************************
-BOOL 
-CreateFlow(
-	IN OUT	PTC_GEN_FLOW	*_ppTcFlowObj,
-	IN		USHORT			DSCPValue,
-	IN		USHORT			OnePValue,
-	IN		ULONG			ThrottleRate
-	)
+BOOL CreateFlow( IN OUT PTC_GEN_FLOW *_ppTcFlowObj, 
+                 IN  USHORT   DSCPValue, 
+                 IN  USHORT   OnePValue,
+                 IN  ULONG   ThrottleRate)
 {
-	BOOL status = FALSE;
+   BOOL status = FALSE;
 
-	//
-	// Flow Parameters
-	//
-	ULONG			TokenRate = QOS_NOT_SPECIFIED;
-	ULONG			TokenBucketSize = QOS_NOT_SPECIFIED;
-	ULONG			PeakBandwidth = QOS_NOT_SPECIFIED;
-	ULONG			Latency = QOS_NOT_SPECIFIED;
-	ULONG			DelayVariation = QOS_NOT_SPECIFIED;
-	SERVICETYPE		ServiceType = SERVICETYPE_BESTEFFORT;
-	ULONG			MaxSduSize = QOS_NOT_SPECIFIED;
-	ULONG			MinimumPolicedSize = QOS_NOT_SPECIFIED;
+ //
+ // Flow Parameters
+ //
+   ULONG   TokenRate = QOS_NOT_SPECIFIED;
+   ULONG   TokenBucketSize = QOS_NOT_SPECIFIED;
+   ULONG   PeakBandwidth = QOS_NOT_SPECIFIED;
+   ULONG   Latency = QOS_NOT_SPECIFIED;
+   ULONG   DelayVariation = QOS_NOT_SPECIFIED;
+   SERVICETYPE  ServiceType = SERVICETYPE_BESTEFFORT;
+   ULONG   MaxSduSize = QOS_NOT_SPECIFIED;
+   ULONG   MinimumPolicedSize = QOS_NOT_SPECIFIED;
 
-	PVOID			pCurrentObject;
-	PTC_GEN_FLOW	_pTcFlowObj = NULL;
+   PVOID   pCurrentObject;
+   PTC_GEN_FLOW _pTcFlowObj = NULL;
 
-	int				Length = 0;
+   int    Length = 0;
   
-	//
-	// Calculate the memory size required for the optional TC objects
-	//
-	Length += (OnePValue == NOT_SPECIFIED ? 0 : sizeof(QOS_TRAFFIC_CLASS)) + 
-				(DSCPValue == NOT_SPECIFIED ? 0 : sizeof(QOS_DS_CLASS));
+   //
+   // Calculate the memory size required for the optional TC objects
+   //
+   Length += (OnePValue == NOT_SPECIFIED ? 0 : sizeof(QOS_TRAFFIC_CLASS)) + 
+          (DSCPValue == NOT_SPECIFIED ? 0 : sizeof(QOS_DS_CLASS));
 
-	//
-	// Print the Flow parameters
-	//
-	if(ThrottleRate == QOS_NOT_SPECIFIED) 
-	{
-		// printf("\tThrottleRate: *\n");
-		// printf("\tServiceType: Best effort\n");
-	}
-	else 
-	{
-		ServiceType = SERVICETYPE_GUARANTEED;
-	}
+   //
+   // Print the Flow parameters
+   //
+   if(ThrottleRate == QOS_NOT_SPECIFIED) 
+   {
+      // DPRINT_INFO(WFA_OUT, "\tThrottleRate: *\n");
+      // DPRINT_INFO(WFA_OUT, "\tServiceType: Best effort\n");
+   }
+   else 
+   {
+      ServiceType = SERVICETYPE_GUARANTEED;
+   }
 
-	TokenRate = TokenBucketSize = ThrottleRate;
+   TokenRate = TokenBucketSize = ThrottleRate;
 
-	//
-	// Allocate the flow descriptor
-	//
-	_pTcFlowObj = (PTC_GEN_FLOW)malloc(FIELD_OFFSET(TC_GEN_FLOW, TcObjects) + Length);
-	if (!_pTcFlowObj) 
-	{
-		printf("Flow Allocation Failed\n");
-		goto Exit;
-	}
+   //
+   // Allocate the flow descriptor
+   //
+   _pTcFlowObj = (PTC_GEN_FLOW)malloc(FIELD_OFFSET(TC_GEN_FLOW, TcObjects) + Length);
+   if (!_pTcFlowObj) 
+   {
+      DPRINT_ERR(WFA_ERR, "Flow Allocation Failed\n");
+      goto Exit;
+   }
 
-	_pTcFlowObj->SendingFlowspec.TokenRate = TokenRate;
-	_pTcFlowObj->SendingFlowspec.TokenBucketSize = TokenBucketSize;
-	_pTcFlowObj->SendingFlowspec.PeakBandwidth = PeakBandwidth;
-	_pTcFlowObj->SendingFlowspec.Latency = Latency;
-	_pTcFlowObj->SendingFlowspec.DelayVariation = DelayVariation;
-	_pTcFlowObj->SendingFlowspec.ServiceType = ServiceType;
-	_pTcFlowObj->SendingFlowspec.MaxSduSize = MaxSduSize;
-	_pTcFlowObj->SendingFlowspec.MinimumPolicedSize = MinimumPolicedSize;
+   _pTcFlowObj->SendingFlowspec.TokenRate = TokenRate;
+   _pTcFlowObj->SendingFlowspec.TokenBucketSize = TokenBucketSize;
+   _pTcFlowObj->SendingFlowspec.PeakBandwidth = PeakBandwidth;
+   _pTcFlowObj->SendingFlowspec.Latency = Latency;
+   _pTcFlowObj->SendingFlowspec.DelayVariation = DelayVariation;
+   _pTcFlowObj->SendingFlowspec.ServiceType = ServiceType;
+   _pTcFlowObj->SendingFlowspec.MaxSduSize = MaxSduSize;
+   _pTcFlowObj->SendingFlowspec.MinimumPolicedSize = MinimumPolicedSize;
 
-	memcpy(&(_pTcFlowObj->ReceivingFlowspec), &(_pTcFlowObj->SendingFlowspec), sizeof(_pTcFlowObj->ReceivingFlowspec));
+   memcpy(&(_pTcFlowObj->ReceivingFlowspec), &(_pTcFlowObj->SendingFlowspec), sizeof(_pTcFlowObj->ReceivingFlowspec));
 
-	_pTcFlowObj->TcObjectsLength = Length;
+   _pTcFlowObj->TcObjectsLength = Length;
 
-	//
-	// Add any requested objects
-	//
-	pCurrentObject = (PVOID)_pTcFlowObj->TcObjects;
+   //
+   // Add any requested objects
+   //
+   pCurrentObject = (PVOID)_pTcFlowObj->TcObjects;
 
-    if(OnePValue != NOT_SPECIFIED)
-	{
-		QOS_TRAFFIC_CLASS *pTClassObject = (QOS_TRAFFIC_CLASS*)pCurrentObject;
-		pTClassObject->ObjectHdr.ObjectType = QOS_OBJECT_TRAFFIC_CLASS;
-		pTClassObject->ObjectHdr.ObjectLength = sizeof(QOS_TRAFFIC_CLASS);
-		pTClassObject->TrafficClass = OnePValue; //802.1p tag to be used
+   if(OnePValue != NOT_SPECIFIED)
+   {
+      QOS_TRAFFIC_CLASS *pTClassObject = (QOS_TRAFFIC_CLASS*)pCurrentObject;
+      pTClassObject->ObjectHdr.ObjectType = QOS_OBJECT_TRAFFIC_CLASS;
+      pTClassObject->ObjectHdr.ObjectLength = sizeof(QOS_TRAFFIC_CLASS);
+      pTClassObject->TrafficClass = OnePValue; //802.1p tag to be used
 
-		pCurrentObject = (PVOID)(pTClassObject + 1);
-	}
+      pCurrentObject = (PVOID)(pTClassObject + 1);
+   }
 
-	if(DSCPValue != NOT_SPECIFIED)
-	{
-		QOS_DS_CLASS *pDSClassObject = (QOS_DS_CLASS*)pCurrentObject;
-		pDSClassObject->ObjectHdr.ObjectType = QOS_OBJECT_DS_CLASS;
-		pDSClassObject->ObjectHdr.ObjectLength = sizeof(QOS_DS_CLASS);
-		pDSClassObject->DSField = (DSCPValue << 3); //Services Type
-	}
+   if(DSCPValue != NOT_SPECIFIED)
+   {
+      QOS_DS_CLASS *pDSClassObject = (QOS_DS_CLASS*)pCurrentObject;
+      pDSClassObject->ObjectHdr.ObjectType = QOS_OBJECT_DS_CLASS;
+      pDSClassObject->ObjectHdr.ObjectLength = sizeof(QOS_DS_CLASS);
+      pDSClassObject->DSField = (DSCPValue << 3); //Services Type
+   }
 
-	DeleteFlow(_ppTcFlowObj);
-	*_ppTcFlowObj = _pTcFlowObj;
+   DeleteFlow(_ppTcFlowObj);
+   *_ppTcFlowObj = _pTcFlowObj;
 
-	status = TRUE;
+   status = TRUE;
 
- Exit:
-	if(!status)
-	{
-		printf("Flow Creation Failed\n");
-		DeleteFlow(&_pTcFlowObj);
-	}
-	else
-	{
-		printf("Flow Creation Succeeded\n");
-	}
+   Exit:
+   if(!status)
+   {
+       DPRINT_INFO(WFA_OUT, "Flow Creation Failed\n");
+       DeleteFlow(&_pTcFlowObj);
+   }
+   else
+   {
+       DPRINT_INFO(WFA_OUT, "Flow Creation Succeeded\n");
+   }
 
-	return status;
+   return status;
 }
 
 //******************************************************************************
@@ -400,8 +395,7 @@ CreateFlow(
 //      Deletes the filter and its member variables
 //            
 //******************************************************************************
-BOOL 
-DeleteFilter(PTC_GEN_FILTER *ppFilter)
+BOOL DeleteFilter(PTC_GEN_FILTER *ppFilter)
 {
     PTC_GEN_FILTER pFilter;
 
@@ -429,489 +423,469 @@ DeleteFilter(PTC_GEN_FILTER *ppFilter)
 
 //
 // Routine: 
-//	CreateFilter
+// CreateFilter
 // Description:
-//	The function returns a tc filter in ppFilter on success 
+// The function returns a tc filter in ppFilter on success 
 // Arguments:
-//	[in, out] ppFilter - 
-//		double ptr to Filter struct in which the function returns the filter
-//	[in] Address -
-//		destination address of the outgoing packets of interest.
-//	[in] Port -
-//		destination port of the outgoing packets of interest.
-//	[in] ProtocolId -
-//		protocol of the outgoing packets of interest.
+// [in, out] ppFilter - 
+//  double ptr to Filter struct in which the function returns the filter
+// [in] Address -
+//  destination address of the outgoing packets of interest.
+// [in] Port -
+//  destination port of the outgoing packets of interest.
+// [in] ProtocolId -
+//  protocol of the outgoing packets of interest.
 // Return:
-//	TRUE if filter creating successes.
-//	FALSE if failed.
+// TRUE if filter creating successes.
+// FALSE if failed.
 //
-BOOL 
-CreateFilter(
-	IN OUT	PTC_GEN_FILTER		*ppFilter,
-	IN		SOCKADDR_STORAGE	Address,
-	IN		USHORT				Port,
-	IN		UCHAR				ProtocolId
-	)
+BOOL CreateFilter( IN OUT PTC_GEN_FILTER  *ppFilter,
+                   IN  SOCKADDR_STORAGE Address,
+                   IN  USHORT    Port,
+                   IN  UCHAR    ProtocolId)
 {  
-	BOOL status = FALSE;
-	USHORT AddressFamily = Address.ss_family;
-	PTC_GEN_FILTER pFilter = NULL;
-	PIP_PATTERN pPattern = NULL;
-	PIP_PATTERN pMask = NULL;
+   BOOL status = FALSE;
+   USHORT AddressFamily = Address.ss_family;
+   PTC_GEN_FILTER pFilter = NULL;
+   PIP_PATTERN pPattern = NULL;
+   PIP_PATTERN pMask = NULL;
 
-	if(AddressFamily != AF_INET)
-	{
-		printf("Address family is not AF_INET");
-		goto Exit;
-	}
+   if(AddressFamily != AF_INET)
+   {
+      DPRINT_INFO(WFA_OUT, "Address family is not AF_INET");
+      goto Exit;
+   }
   
-	//
-	// Allocate memory for the filter
-	//
-	pFilter = (PTC_GEN_FILTER)malloc(sizeof(TC_GEN_FILTER));
-	if(!pFilter)
-	{
-		printf("Error, No memory for filter\n");
-		goto Exit;
-	}
-	ZeroMemory(pFilter, sizeof(TC_GEN_FILTER));
+   //
+   // Allocate memory for the filter
+   //
+   pFilter = (PTC_GEN_FILTER)malloc(sizeof(TC_GEN_FILTER));
+   if(!pFilter)
+   {
+      DPRINT_INFO(WFA_OUT, "Error, No memory for filter\n");
+      goto Exit;
+   }
+   ZeroMemory(pFilter, sizeof(TC_GEN_FILTER));
       
-	//
-	// Allocate memory for the pattern and mask
-	//
-	pPattern = (PIP_PATTERN)malloc(sizeof(IP_PATTERN));
-	pMask    = (PIP_PATTERN)malloc(sizeof(IP_PATTERN));
+   //
+   // Allocate memory for the pattern and mask
+   //
+   pPattern = (PIP_PATTERN)malloc(sizeof(IP_PATTERN));
+   pMask    = (PIP_PATTERN)malloc(sizeof(IP_PATTERN));
 
-	if(!pPattern || !pMask)
-	{
-		printf("pPattern or pMask is null");
-		goto Exit;
-	}
+   if(!pPattern || !pMask)
+   {
+      DPRINT_INFO(WFA_OUT, "pPattern or pMask is null");
+      goto Exit;
+   }
   
-	memset(pPattern, 0, sizeof(IP_PATTERN));
+   memset(pPattern, 0, sizeof(IP_PATTERN));
 
-	pPattern->DstAddr = ((SOCKADDR_IN *)&Address)->sin_addr.s_addr;
-	pPattern->tcDstPort = htons(Port);
-	pPattern->ProtocolId = ProtocolId;
+   pPattern->DstAddr = ((SOCKADDR_IN *)&Address)->sin_addr.s_addr;
+   pPattern->tcDstPort = htons(Port);
+   pPattern->ProtocolId = ProtocolId;
 
-	memset(pMask, (ULONG)-1, sizeof(IP_PATTERN));
-	//
-	// Set the source address and port to wildcard
-	// 0 -> wildcard, 0xFF-> exact match 
-	//
-	pMask->SrcAddr = 0;
-	pMask->tcSrcPort = 0;
+   memset(pMask, (ULONG)-1, sizeof(IP_PATTERN));
+   //
+   // Set the source address and port to wildcard
+   // 0 -> wildcard, 0xFF-> exact match 
+   //
+   pMask->SrcAddr = 0;
+   pMask->tcSrcPort = 0;
 
-	//
-	// If the user specified 0 for dest port, dest address or protocol
-	// set the appropriate mask as wildcard
-	// 0 -> wildcard, 0xFF-> exact match 
-	//
+   //
+   // If the user specified 0 for dest port, dest address or protocol
+   // set the appropriate mask as wildcard
+   // 0 -> wildcard, 0xFF-> exact match 
+   //
 
-	if(pPattern->tcDstPort == 0)
-	{
-		pMask->tcDstPort = 0;
-	}
+   if(pPattern->tcDstPort == 0)
+   {
+      pMask->tcDstPort = 0;
+   }
 
-	if(pPattern->ProtocolId == 0)
-	{
-		pMask->ProtocolId = 0;
-	}
+   if(pPattern->ProtocolId == 0)
+   {
+      pMask->ProtocolId = 0;
+   }
 
-	if(pPattern->DstAddr == 0)
-	{
-		pMask->DstAddr = 0;
-	}
+   if(pPattern->DstAddr == 0)
+   {
+      pMask->DstAddr = 0;
+   }
 
-	pFilter->AddressType = NDIS_PROTOCOL_ID_TCP_IP;
-	pFilter->PatternSize = sizeof(IP_PATTERN);
-	pFilter->Pattern = pPattern;
-	pFilter->Mask = pMask;
+   pFilter->AddressType = NDIS_PROTOCOL_ID_TCP_IP;
+   pFilter->PatternSize = sizeof(IP_PATTERN);
+   pFilter->Pattern = pPattern;
+   pFilter->Mask = pMask;
 
-	//
-	// Delete any previous instances of the Filter
-	//
-	DeleteFilter(ppFilter);
-	*ppFilter = pFilter;
+   //
+   // Delete any previous instances of the Filter
+   //
+   DeleteFilter(ppFilter);
+   *ppFilter = pFilter;
 
-	status = TRUE;
+   status = TRUE;
 
-Exit:
-	if(!status)
-	{
-		printf("Filter Creation Failed\n");
-		DeleteFilter(&pFilter);
-	}
-	else
-	{
-		printf("Filter Creation Succeeded\n");
-	}
+   Exit:
+   if(!status)
+   {
+      DPRINT_INFO(WFA_OUT, "Filter Creation Failed\n");
+      DeleteFilter(&pFilter);
+   }
+   else
+   {
+      DPRINT_INFO(WFA_OUT, "Filter Creation Succeeded\n");
+   }
 
-	return status; 
+   return status; 
 }
 
 //
 // Routine: 
-//	ClNotifyHandler
+// ClNotifyHandler
 // Description:
-//	Empty notification handler.
-//	The ClNotifyHandler function is used by traffic control to notify the client of various 
-//	traffic control$(Dx7(Bspecific events, including the deletion of flows, changes in filter parameters,
-//	or the closing of an interface.
+// Empty notification handler.
+// The ClNotifyHandler function is used by traffic control to notify the client of various 
+// traffic control$(Dx7(Bspecific events, including the deletion of flows, changes in filter parameters,
+// or the closing of an interface.
 // Arguments:
-//	[in] ClRegCtx -
-//		Client registration context, provided to traffic control by the client with the client's call
-//		to the TcRegisterClient function.
-//	[in] ClIfcCtx -
-//		Client interface context, provided to traffic control by the client with the client's call to
-//		the TcOpenInterface function. Note that during a TC_NOTIFY_IFC_UP event, ClIfcCtx is not
-//		available and will be set to NULL.
-//	[in] Event -
-//		Describes the notification event. See the Remarks section for a list of notification events.
-//	[in] SubCode -
-//		Handle used to further qualify a notification event.
-//	[in] BufSize -
-//		Size of the buffer included with the notification event, in bytes.
-//	[in] Buffer -
-//		Buffer containing the detailed event information associated with Event and SubCode.
+// [in] ClRegCtx -
+//  Client registration context, provided to traffic control by the client with the client's call
+//  to the TcRegisterClient function.
+// [in] ClIfcCtx -
+//  Client interface context, provided to traffic control by the client with the client's call to
+//  the TcOpenInterface function. Note that during a TC_NOTIFY_IFC_UP event, ClIfcCtx is not
+//  available and will be set to NULL.
+// [in] Event -
+//  Describes the notification event. See the Remarks section for a list of notification events.
+// [in] SubCode -
+//  Handle used to further qualify a notification event.
+// [in] BufSize -
+//  Size of the buffer included with the notification event, in bytes.
+// [in] Buffer -
+//  Buffer containing the detailed event information associated with Event and SubCode.
 // Return:
-//	None
+// None
 //
-void 
-ClNotifyHandler(
-	IN	HANDLE	ClRegCtx,
-	IN	HANDLE	ClIfcCtx,
-	IN	ULONG	Event,
-	IN	HANDLE	SubCode,
-	IN	ULONG	BufSize,
-	IN	PVOID	Buffer
-	)
+void ClNotifyHandler( IN HANDLE ClRegCtx,
+                      IN HANDLE ClIfcCtx,
+                      IN ULONG Event,
+                      IN HANDLE SubCode,
+                      IN ULONG BufSize,
+                      IN PVOID Buffer)
 {
-	UNREFERENCED_PARAMETER(ClRegCtx);
-	UNREFERENCED_PARAMETER(ClIfcCtx);
-	//
-	// Notification was unexpected
-	//
-	printf("Unexpected notification: Event=%d, SubCode=%p, BufSize=%d, Buffer=%p", (int)Event, (void *)SubCode, (int)BufSize, Buffer);
+   UNREFERENCED_PARAMETER(ClRegCtx);
+   UNREFERENCED_PARAMETER(ClIfcCtx);
+   //
+   // Notification was unexpected
+   //
+   DPRINT_INFO(WFA_OUT, "Unexpected notification: Event=%d, SubCode=%p, BufSize=%d, Buffer=%p", 
+                             (int)Event, (void *)SubCode, (int)BufSize, Buffer);
 }
 
 //
 // Routine: 
-//	ClearIfcList
+// ClearIfcList
 // Description:
-//	Clears the IfcList and its member variables
+// Clears the IfcList and its member variables
 // Arguments:
-//	[in] pIfcList -
-//		The interface list.
+// [in] pIfcList -
+//  The interface list.
 // Return:
-//	TRUE if successes or FALSE if fails.
+// TRUE if successes or FALSE if fails.
 //
-BOOL 
-ClearIfcList(
-	IN	PIFC_LIST	pIfcList
-	)
+BOOL ClearIfcList( IN PIFC_LIST pIfcList)
 {
-	ULONG	i;
+   ULONG i;
 
-	if(!pIfcList)
-	{
-		return TRUE;
-	}
+   if(!pIfcList)
+   {
+      return TRUE;
+   }
 
-	if(pIfcList->pIfcInfo)
-	{
-		//
-		// Delete filter, flow and interface
-		//
-		PIFC_INFO	pCurrentIfcInfo = pIfcList->pIfcInfo;
+   if(pIfcList->pIfcInfo)
+   {
+      //
+      // Delete filter, flow and interface
+      //
+      PIFC_INFO pCurrentIfcInfo = pIfcList->pIfcInfo;
 
-		for(i = 0; i < pIfcList->IfcCount; i ++)
-		{
-			if(pCurrentIfcInfo->hFilter)
-			{
-				TcDeleteFilter(pCurrentIfcInfo->hFilter);
-			}
-			if(pCurrentIfcInfo->hFlow)
-			{
-				TcDeleteFlow(pCurrentIfcInfo->hFlow);
-			}
-			if(pCurrentIfcInfo->hIfc)
-			{
-				TcCloseInterface(pCurrentIfcInfo->hIfc);
-			}
+      for(i = 0; i < pIfcList->IfcCount; i ++)
+      {
+         if(pCurrentIfcInfo->hFilter)
+         {
+            TcDeleteFilter(pCurrentIfcInfo->hFilter);
+         }
+         if(pCurrentIfcInfo->hFlow)
+         {
+            TcDeleteFlow(pCurrentIfcInfo->hFlow);
+         }
+         if(pCurrentIfcInfo->hIfc)
+         {
+            TcCloseInterface(pCurrentIfcInfo->hIfc);
+         }
 
-			pCurrentIfcInfo++;
-		}
+         pCurrentIfcInfo++;
+      }
 
-		free(pIfcList->pIfcInfo);
-	}
+      free(pIfcList->pIfcInfo);
+   }
 
-	ZeroMemory(pIfcList, sizeof(IFC_LIST));
+   ZeroMemory(pIfcList, sizeof(IFC_LIST));
 
-	return TRUE;
+   return TRUE;
 }
 
 
 //
 // Routine: 
-//	MakeIfcList
+// MakeIfcList
 // Description:
-//	The function enumerates all TC enabled interfaces. 
-//	opens each TC enabled interface and stores each ifc handle in IFC_LIST struct
-//	pointed to by pIfcList.
+// The function enumerates all TC enabled interfaces. 
+// opens each TC enabled interface and stores each ifc handle in IFC_LIST struct
+// pointed to by pIfcList.
 // Arguments:
-//	[in] hClient -
-//		Handle returned by TcRegisterClient
-//	[in] pIfcList -
-//		ptr to IfcList structure which will be populated by the function
+// [in] hClient -
+//  Handle returned by TcRegisterClient
+// [in] pIfcList -
+//  ptr to IfcList structure which will be populated by the function
 // Return:
-//	TRUE if successes or FALSE if fails.
+// TRUE if successes or FALSE if fails.
 //
 BOOL
-MakeIfcList(
-	IN	HANDLE		hClient,
-	IN	PIFC_LIST	pIfcList
-	)
+MakeIfcList( IN HANDLE  hClient,
+             IN PIFC_LIST pIfcList)
 {
-	BOOL				status = FALSE;
-	ULONG				err = ERROR_INVALID_PARAMETER;
+   BOOL    status = FALSE;
+   ULONG    err = ERROR_INVALID_PARAMETER;
 
-	ULONG 				BufferSize = 1, ActualBufferSize, RemainingBufferSize = 0;
-	PTC_IFC_DESCRIPTOR	pIfcBuffer = NULL, pCurrentIfc;
-	PIFC_INFO			pIfcInfo = NULL, pCurrentIfcInfo;
-	ULONG				nIfcs = 0;
+   ULONG     BufferSize = 1, ActualBufferSize, RemainingBufferSize = 0;
+   PTC_IFC_DESCRIPTOR pIfcBuffer = NULL, pCurrentIfc;
+   PIFC_INFO   pIfcInfo = NULL, pCurrentIfcInfo;
+   ULONG    nIfcs = 0;
 
-	//
-	// Enumerate the TC enabled interfaces
-	//
-	while(TRUE)
-	{
-		ActualBufferSize = BufferSize;
-		pIfcBuffer = (PTC_IFC_DESCRIPTOR)malloc(ActualBufferSize);
-		if(pIfcBuffer == NULL)
-		{
-			break;
-		}
+   //
+   // Enumerate the TC enabled interfaces
+   //
+   while(TRUE)
+   {
+      ActualBufferSize = BufferSize;
+      pIfcBuffer = (PTC_IFC_DESCRIPTOR)malloc(ActualBufferSize);
+      if(pIfcBuffer == NULL)
+      {
+         break;
+      }
 
-		err = TcEnumerateInterfaces(hClient,
-										&ActualBufferSize,
-										pIfcBuffer);
-		if(err == ERROR_INSUFFICIENT_BUFFER)
-		{
-			free(pIfcBuffer);
-			BufferSize *= 2;
-		}
-		else
-		{
-			break;
-		}
-	}
+      err = TcEnumerateInterfaces(hClient, &ActualBufferSize, pIfcBuffer);
+      if(err == ERROR_INSUFFICIENT_BUFFER)
+      {
+         free(pIfcBuffer);
+         BufferSize *= 2;
+      }
+      else
+      {
+         break;
+      }
+   }
 
-	if(err != NO_ERROR)
-	{
-		goto Exit;
-	}
+   if(err != NO_ERROR)
+   {
+      goto Exit;
+   }
 
-	//
-	// Count the number of interfaces
-	//
+   //
+   // Count the number of interfaces
+   //
 
-	pCurrentIfc = pIfcBuffer;
-	RemainingBufferSize = ActualBufferSize;
-	while(RemainingBufferSize)
-	{
-		nIfcs ++;
+   pCurrentIfc = pIfcBuffer;
+   RemainingBufferSize = ActualBufferSize;
+   while(RemainingBufferSize)
+   {
+      nIfcs ++;
 
-		RemainingBufferSize -= pCurrentIfc->Length;
-		pCurrentIfc = (PTC_IFC_DESCRIPTOR)(((PBYTE)pCurrentIfc) + pCurrentIfc->Length);
-	}
+      RemainingBufferSize -= pCurrentIfc->Length;
+      pCurrentIfc = (PTC_IFC_DESCRIPTOR)(((PBYTE)pCurrentIfc) + pCurrentIfc->Length);
+   }
   
-	if(nIfcs == 0)
-	{
-		goto Exit;
-	}
+   if(nIfcs == 0)
+   {
+      goto Exit;
+   }
 
-	//
-	// Allocate memory for the size(IFC_INFO) X nIfcs
-	// 
-	pIfcInfo = (PIFC_INFO)malloc(sizeof(IFC_INFO) * nIfcs);
-	if(!pIfcInfo)
-	{
-		goto Exit;
-	}
+   //
+   // Allocate memory for the size(IFC_INFO) X nIfcs
+   // 
+   pIfcInfo = (PIFC_INFO)malloc(sizeof(IFC_INFO) * nIfcs);
+   if(!pIfcInfo)
+   {
+      goto Exit;
+   }
   
-	ZeroMemory(pIfcInfo, sizeof(IFC_INFO) * nIfcs);
+   ZeroMemory(pIfcInfo, sizeof(IFC_INFO) * nIfcs);
 
-	ClearIfcList(pIfcList);
-	pIfcList->IfcCount = nIfcs;
-	pIfcList->pIfcInfo = pIfcInfo;
+   ClearIfcList(pIfcList);
+   pIfcList->IfcCount = nIfcs;
+   pIfcList->pIfcInfo = pIfcInfo;
 
-	//
-	// Open Each interface and store the ifc handle in ifcList
-	//
+   //
+   // Open Each interface and store the ifc handle in ifcList
+   //
+   pCurrentIfc = pIfcBuffer;
+   pCurrentIfcInfo = pIfcInfo;
 
-	pCurrentIfc = pIfcBuffer;
-	pCurrentIfcInfo = pIfcInfo;
+   RemainingBufferSize = ActualBufferSize;
+   while(RemainingBufferSize)
+   {
+     HANDLE hIfc;
 
-	RemainingBufferSize = ActualBufferSize;
-	while(RemainingBufferSize)
-	{
-		HANDLE	hIfc;
-
-		err = TcOpenInterfaceW(pCurrentIfc->pInterfaceName,
-								hClient,
-								0,
-								&hIfc);
-		if(err != NO_ERROR)
-		{
-			printf("TcOpenInterface Failed %d\n", err);
-			break;
-		}
-
-		pCurrentIfcInfo->hIfc = hIfc;
-
-		RemainingBufferSize -= pCurrentIfc->Length;
-		pCurrentIfc = (PTC_IFC_DESCRIPTOR)(((PBYTE)pCurrentIfc) + pCurrentIfc->Length);
-		pCurrentIfcInfo ++;
-	}
+     err = TcOpenInterfaceW(pCurrentIfc->pInterfaceName, 
+                    hClient,
+                    0,
+                    &hIfc);
   
-	if(err != NO_ERROR)
-	{
-		goto Exit;
-	}
+     if(err != NO_ERROR)
+     {
+       DPRINT_ERR(WFA_ERR, "TcOpenInterface Failed %d\n", err);
+       break;
+     }
 
-	status = TRUE;
+     pCurrentIfcInfo->hIfc = hIfc;
 
-Exit:
-	if(!status)
-	{
-		ClearIfcList(pIfcList);
-	}
+     RemainingBufferSize -= pCurrentIfc->Length;
+     pCurrentIfc = (PTC_IFC_DESCRIPTOR)(((PBYTE)pCurrentIfc) + pCurrentIfc->Length);
+     pCurrentIfcInfo ++;
+   }
+  
+   if(err != NO_ERROR)
+   {
+      goto Exit;
+   }
+
+   status = TRUE;
+
+   Exit:
+   if(!status)
+   {
+      ClearIfcList(pIfcList);
+   }
    
-	//
-	// Cleanup the IfcBuffer
-	//
-	if(pIfcBuffer)
-	{
-		free(pIfcBuffer);
-	}
+   //
+   // Cleanup the IfcBuffer
+   //
+   if(pIfcBuffer)
+   {
+      free(pIfcBuffer);
+   }
 
-	return status;
+   return status;
 }
 
 //
 // Routine: 
-//	AddTcFlows
+// AddTcFlows
 // Description:
-//	Add Tc Flow in pTcFlow to each interface in IfcList.
+// Add Tc Flow in pTcFlow to each interface in IfcList.
 // Arguments:
-//	[in] IfcList -
-//		The interface list.
-//	[in] pTcFlow -
-//		The TC flow to add.
+// [in] IfcList -
+//  The interface list.
+// [in] pTcFlow -
+//  The TC flow to add.
 // Return:
-//	TRUE if successes. Otherwise return FALSE.
+// TRUE if successes. Otherwise return FALSE.
 //
-BOOL
-AddTcFlows(
-	IN	IFC_LIST		IfcList,
-	IN	PTC_GEN_FLOW	pTcFlow
-	)
+BOOL AddTcFlows( IN IFC_LIST  IfcList,
+                 IN PTC_GEN_FLOW pTcFlow)
 {
-	UINT 		i;
-	ULONG		err;
-	BOOL		status = FALSE;
-	PIFC_INFO	pCurrentIfcInfo = IfcList.pIfcInfo;
+   UINT   i;
+   ULONG  err;
+   BOOL  status = FALSE;
+   PIFC_INFO pCurrentIfcInfo = IfcList.pIfcInfo;
 
-	//
-	// For each interface in the list, add a TC flow
-	//
-	for(i = 0; i < IfcList.IfcCount; i++)
-	{
-		HANDLE	hFlow;
+   //
+   // For each interface in the list, add a TC flow
+   //
+   for(i = 0; i < IfcList.IfcCount; i++)
+   {
+       HANDLE hFlow;
 
-		err = TcAddFlow(pCurrentIfcInfo->hIfc,
-							0,
-							0,
-							pTcFlow,
-							&hFlow);
-		if(err != NO_ERROR)
-		{
-			printf("TcAddFlow Failed %d\n", err);
-			goto Exit;
-		}
+       err = TcAddFlow(pCurrentIfcInfo->hIfc,
+                       0, 0, pTcFlow, &hFlow);
+       if(err != NO_ERROR)
+       {
+          DPRINT_ERR(WFA_ERR, "TcAddFlow Failed %d\n", err);
+          goto Exit;
+       }
 
-		pCurrentIfcInfo->hFlow = hFlow;
-		pCurrentIfcInfo++;
-	}
+       pCurrentIfcInfo->hFlow = hFlow;
+       pCurrentIfcInfo++;
+   }
 
-	status = TRUE;
+   status = TRUE;
 
-Exit:
-	return status;
+   Exit:
+
+   return status;
 }
 
 //
 // Routine: 
-//	AddTcFilters
+// AddTcFilters
 // Description:
-//	Add Tc Filter in pTcFilter to each interface in IfcList
+// Add Tc Filter in pTcFilter to each interface in IfcList
 // Arguments:
-//	[in] IfcList -
-//		The interface list.
-//	[in] pTcFilter -
-//		The filter to apply.
+// [in] IfcList -
+//  The interface list.
+// [in] pTcFilter -
+//  The filter to apply.
 // Return:
-//	TRUE if successes. Otherwise return FALSE.
+// TRUE if successes. Otherwise return FALSE.
 //
-BOOL
-AddTcFilters(
-	IN	IFC_LIST		IfcList,
-	IN	PTC_GEN_FILTER	pTcFilter
-	)
+BOOL AddTcFilters( IN IFC_LIST  IfcList,
+                   IN PTC_GEN_FILTER pTcFilter)
 {
-	UINT		i;
-	ULONG		err;
-	BOOL		status = FALSE;
-	PIFC_INFO	pCurrentIfcInfo = IfcList.pIfcInfo;
+   UINT  i;
+   ULONG  err;
+   BOOL  status = FALSE;
+   PIFC_INFO pCurrentIfcInfo = IfcList.pIfcInfo;
 
-	//
-	// For each interface in the list, add TC filter on the corresponding TcFlow
-	//
-	for(i = 0; i < IfcList.IfcCount; i++)
-	{
-		HANDLE	hFilter;
+   //
+   // For each interface in the list, add TC filter on the corresponding TcFlow
+   //
+   for(i = 0; i < IfcList.IfcCount; i++)
+   {
+       HANDLE hFilter;
 
-		err = TcAddFilter(pCurrentIfcInfo->hFlow,
-							pTcFilter,
-							&hFilter);
-		if(err != NO_ERROR)
-		{
-			printf("TcAddFilter Failed %d\n", err);
-			goto Exit;
-		}
+       err = TcAddFilter(pCurrentIfcInfo->hFlow, pTcFilter, &hFilter);
+       if(err != NO_ERROR)
+       {
+           DPRINT_ERR(WFA_ERR, "TcAddFilter Failed %d\n", err);
+           goto Exit;
+       }
 
-		pCurrentIfcInfo->hFilter = hFilter;
-		pCurrentIfcInfo++;      
-	}
+       pCurrentIfcInfo->hFilter = hFilter;
+       pCurrentIfcInfo++;      
+   }
 
-	status = TRUE;
+   status = TRUE;
 
-Exit:
-	return status;
+   Exit:
+
+   return status;
 }
 
 
-int CleanTos_Win7 (IN	PIFC_LIST	pIfcList,PTC_GEN_FILTER *ppFilter,IN	PTC_GEN_FLOW	*pFlow)
+int CleanTos_Win7 (IN PIFC_LIST pIfcList,PTC_GEN_FILTER *ppFilter,IN PTC_GEN_FLOW *pFlow)
 {
-	//
-    // Cleanup
-    //
-	ClearIfcList(pIfcList);
-	DeleteFilter(ppFilter);
-	DeleteFlow(pFlow);
-	return 0;
+   //
+   // Cleanup
+   //
+   ClearIfcList(pIfcList);
+   DeleteFilter(ppFilter);
+   DeleteFlow(pFlow);
+   return 0;
 }
+
 /*
  * wfaTGSetPrio_Win7(): This depends on the network interface card.
  *               So you might want to remap according to the driver
@@ -921,212 +895,232 @@ int CleanTos_Win7 (IN	PIFC_LIST	pIfcList,PTC_GEN_FILTER *ppFilter,IN	PTC_GEN_FLO
  */
 int wfaTGSetPrio_Win7(int sockfd, int tgClass, tgProfile_t *myProfile)
 {
+   PTC_GEN_FLOW  pTcFlow = NULL;
+ 
+   DWORD TOS = (tgClass << 5);
+   SOCKADDR_STORAGE Address = { 0 };
+   struct addrinfo  *dest = NULL;
 
+   int gProtocol = IPPROTO_UDP;
+   PTC_GEN_FILTER  pTcFilter = NULL;
+   TCI_CLIENT_FUNC_LIST ClientHandlerList;
+   HANDLE    hClient = TC_INVALID_HANDLE;
+   IFC_LIST   IfcList = {0};
+   ULONG    err;
+   int Qos=0;
 
-	PTC_GEN_FLOW		pTcFlow = NULL;
-	
-	DWORD	TOS = (tgClass << 5);
-	SOCKADDR_STORAGE Address = { 0 };
-	struct addrinfo		*dest = NULL;
-
-	int	gProtocol = IPPROTO_UDP;
-	PTC_GEN_FILTER		pTcFilter = NULL;
-	TCI_CLIENT_FUNC_LIST	ClientHandlerList;
-	HANDLE				hClient = TC_INVALID_HANDLE;
-	IFC_LIST			IfcList = {0};
-	ULONG				err;
-	int Qos=0;
-
-    int tosval;
-    int threadPrio;
+   int tosval;
+   int threadPrio;
     
-    int size = sizeof(tosval);
-    getsockopt(sockfd, IPPROTO_IP, IP_TOS, (char *)&tosval, &size);
+   int size = sizeof(tosval);
 
-    switch(tgClass)
-    {
+   DPRINT_INFOL(WFA_OUT, "Entering wfaTGSetPrio_Win7 with tag = %i ...\n", tgClass);
+
+#if 1
+   getsockopt(sockfd, IPPROTO_IP, IP_TOS, (char *)&tosval, &size);
+#endif
+
+   switch(tgClass)
+   {
        case TG_WMM_AC_BK:
        /*Change this value to the ported device*/
-	   Qos = 1;
+       Qos = 1;
+       DPRINT_INFOL(WFA_OUT, "Setting QoS Background tag\n");
        tosval = TOS_BK;
        threadPrio = THREAD_PRIORITY_BELOW_NORMAL;
        break;
-       case TG_WMM_AC_BK2:
-       /* Change this value to the ported device */
-       tosval = TOS_LE;
-       threadPrio = THREAD_PRIORITY_BELOW_NORMAL;       
-       break;
+
        case TG_WMM_AC_VI:
-	   Qos = 4;
+       Qos = 4;
+       DPRINT_INFOL(WFA_OUT, "Setting QoS Video tag\n");
        tosval = TOS_VI;
-       threadPrio = THREAD_PRIORITY_NORMAL;       
+       threadPrio = THREAD_PRIORITY_ABOVE_NORMAL;       
        break;
-       case TG_WMM_AC_VI2:
-       /* Change this value to the ported device */
-       tosval = TOS_VI4;
-       threadPrio = THREAD_PRIORITY_NORMAL;
-       break;
+
        case TG_WMM_AC_UAPSD:
        tosval = 0x88;
        break;
+
        case TG_WMM_AC_VO:
        /*Change this value to the ported device*/
-	   Qos = 6;
-	   tosval=TOS_VO7;
-	   //else
-       //tosval = TOS_VO;
-       //tosval = 0x30;
-//#       tosval = 0x88;
-       threadPrio = THREAD_PRIORITY_ABOVE_NORMAL;       
+       Qos = 6;
+       DPRINT_INFOL(WFA_OUT, "Setting QoS Voice Tag\n");
+       tosval=TOS_VO7;
+       threadPrio = THREAD_PRIORITY_HIGHEST;       
        break;
-       case TG_WMM_AC_VO2:
-       /*Change this value to the ported device*/
-       tosval = TOS_VO7;
-       threadPrio = THREAD_PRIORITY_ABOVE_NORMAL;       
-       break;
+
        case TG_WMM_AC_BE:
-	   Qos = 0;
+       Qos = 0;
+       DPRINT_INFOL(WFA_OUT, "Setting QoS BE tag\n");
        tosval = TOS_BE;
        threadPrio = THREAD_PRIORITY_NORMAL;
        break;
-       case TG_WMM_AC_BE2:
-       tosval = TOS_EE;
-       threadPrio = THREAD_PRIORITY_NORMAL;       ;
+
+#if 0
+       case TG_WMM_AC_UP0:
+       tosval = 0x00;
        break;
+
+       case TG_WMM_AC_UP1:
+       tosval = 0x20;
+       break;
+
+       case TG_WMM_AC_UP2:
+       tosval = 0x40;
+       break;
+
+       case TG_WMM_AC_UP3:
+       tosval = 0x60;
+       break;
+
+       case TG_WMM_AC_UP4:
+       tosval = 0x80;
+       break;
+
+       case TG_WMM_AC_UP5:
+       tosval = 0xa0;
+       break;
+
+       case TG_WMM_AC_UP6:
+       tosval = 0xc0;
+       break;
+
+       case TG_WMM_AC_UP7:
+       tosval = 0xe0;
+       break;
+#endif
        default:
+         DPRINT_WARNING(WFA_WNG, "Unknown tag value %i\n", tgClass);
          tosval = 0x00;
            /* default */
          ;
-    }
+   }
 
-    if(tgWMMTestEnable == 0)
-    {
-       SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-    }
-    else
-    {
-       SetThreadPriority(GetCurrentThread(), threadPrio);
-    } 
+   SetThreadPriority(GetCurrentThread(), threadPrio);
+#if 0
+   if(tgWMMTestEnable == 0)
+   {
+      SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+   }
+   else
+   {
+      SetThreadPriority(GetCurrentThread(), threadPrio);
+   } 
+#endif
 
 #ifdef WFA_WMM_EXT 
 #ifdef WFA_WMM_PS_EXT
-    psTxMsg[1] = tosval;
+   psTxMsg[1] = tosval;
 #endif
 #endif
 
 
 
-	//
-	// Create the TC Flow with the parameters
-	//
-	printf("TC flow creation - start\n");
-	if(!CreateFlow(&pTcFlow, Qos, NOT_SPECIFIED, QOS_NOT_SPECIFIED))
-	{
-		goto CLEANUP;
-	}
+   //
+   // Create the TC Flow with the parameters
+   //
+   DPRINT_INFO(WFA_OUT, "TC flow creation - start\n");
+   if(!CreateFlow(&pTcFlow, Qos, NOT_SPECIFIED, QOS_NOT_SPECIFIED))
+   {
+      goto CLEANUP;
+   }
 
-		// Resolve the destination address
-	dest = ResolveAddress(
-				myProfile->dipaddr,
-				"0",
-				AF_INET,
-				0,
-				0
-				);
-	
-	if(dest == NULL)
-	{
-		printf("Couldnot resolve the ip address");
-		goto CLEANUP;
-	}
+   char *stport = (char *) malloc(16);
+//   char stport[16];
+   sprintf(stport, "%i", myProfile->dport);
 
-	Address.ss_family = AF_INET;
+   DPRINT_INFOL(WFA_OUT, "The port string is %s\n", stport);
 
-	memcpy(&Address, dest->ai_addr, (int)dest->ai_addrlen);
-	//Address.ss_family = AF_INET;
+   // Resolve the destination address
+   dest = ResolveAddress( myProfile->dipaddr, stport, AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+ 
+   if(dest == NULL)
+   {
+      DPRINT_ERR(WFA_ERR, "Couldnot resolve the ip address");
+      goto CLEANUP;
+   }
 
-	printf("TC filter creation - start\n");
-	//
-	// Create the TC Filter with the parameters
-	//
-	if (!CreateFilter(&pTcFilter, Address, 0, gProtocol))
-	{
-	    goto CLEANUP;
-	}
+   Address.ss_family = AF_INET;
 
-	//
-	// Register TC client
-	//
-	memset(&ClientHandlerList, 0, sizeof(ClientHandlerList));
-	ClientHandlerList.ClNotifyHandler = (TCI_NOTIFY_HANDLER)ClNotifyHandler;
-	err = TcRegisterClient(CURRENT_TCI_VERSION,
-							0,
-							&ClientHandlerList,
-							&hClient);
-	if(err != NO_ERROR)
-	{
-		printf("TcRegisterClient Failed %d\n", err);
+   memcpy(&Address, dest->ai_addr, (int)dest->ai_addrlen);
+   //Address.ss_family = AF_INET;
 
-		if(err == ERROR_OPEN_FAILED)
-		{
-			printf("Please make sure you are running with admin credentials\n");
-		}
+   DPRINT_INFO(WFA_OUT, "TC filter creation - start\n");
 
-		goto CLEANUP;
-	}
+   DPRINT_INFOL(WFA_OUT, "creating a filter for QoS %i\n", Qos);
 
-	//
-	// Enumerate All TC enabled Interfaces and 
-	// store the information in IfcList
-	//
-	if(!MakeIfcList(hClient, &IfcList))
-	{
-		printf("Error reading interface list, make sure QoS Packet Scheduler is active for this interface\n");
-	    goto CLEANUP;
-	}
+   //
+   // Create the TC Filter with the parameters
+   //
+   if (!CreateFilter(&pTcFilter, Address, myProfile->dport, gProtocol))
+   {
+      goto CLEANUP;
+   }
 
-	//
-	// Add pTcFlow on all the Ifcs in the IfcList
-	//
-	if(!AddTcFlows(IfcList, pTcFlow))
-	{
-		printf("Error adding flows\n");
-		goto CLEANUP;
-	}
+   //
+   // Register TC client
+   //
+   memset(&ClientHandlerList, 0, sizeof(ClientHandlerList));
+   ClientHandlerList.ClNotifyHandler = (TCI_NOTIFY_HANDLER)ClNotifyHandler;
+   err = TcRegisterClient(CURRENT_TCI_VERSION, 0, &ClientHandlerList, &hClient);
+   if(err != NO_ERROR)
+   {
+      DPRINT_ERR(WFA_ERR, "TcRegisterClient Failed %d\n", err);
 
-	//
-	// Add pTcFilter to all the corresponding TcFlows
-	// on all the Ifcs in the IfcList
-	//
-	if (!AddTcFilters(IfcList, pTcFilter))
-	{
-		printf("Error adding filter...\n");
-		goto CLEANUP;
-	}
+      if(err == ERROR_OPEN_FAILED)
+      {
+         DPRINT_ERR(WFA_ERR, "Please make sure you are running with admin credentials\n");
+      }
 
-//	if(setsockopt(sockfd, IPPROTO_IP, IP_TOS, 
-//				(char *)&TOS, sizeof(TOS))< 0 )
-//	{
-//       DPRINT_ERR(WFA_ERR, "Failed to set WIN 7 TOS \n");    
-//	}
+      goto CLEANUP;
+   }
 
-    if(setsockopt ( sockfd, IPPROTO_IP, IP_TOS, (char *)&tosval, sizeof(tosval)) < 0)
-    {
-       DPRINT_ERR(WFA_ERR, "Failed to set IP_TOS\n");
-    }
+   //
+   // Enumerate All TC enabled Interfaces and 
+   // store the information in IfcList
+   //
+   if(!MakeIfcList(hClient, &IfcList))
+   {
+      DPRINT_ERR(WFA_ERR, "Error reading interface list, make sure QoS Packet Scheduler is active for this interface\n");
+      goto CLEANUP;
+   }
 
-	printf("set the TOS as %d\n",tosval);
-    return (tosval == 0xE0)?0xD8:tosval;
-CLEANUP:
+   //
+   // Add pTcFlow on all the Ifcs in the IfcList
+   //
+   if(!AddTcFlows(IfcList, pTcFlow))
+   {
+      DPRINT_ERR(WFA_ERR, "Error adding flows\n");
+      goto CLEANUP;
+   }
 
-	//
-    // Cleanup
-    //
-	CleanTos_Win7(&IfcList,&pTcFilter,&pTcFlow);
-	//ClearIfcList(&IfcList);
-	//DeleteFilter(&pTcFilter);
-	//DeleteFlow(&pTcFlow);
-    return 0;
+   //
+   // Add pTcFilter to all the corresponding TcFlows
+   // on all the Ifcs in the IfcList
+   //
+   if (!AddTcFilters(IfcList, pTcFilter))
+   {
+      DPRINT_ERR(WFA_ERR, "Error adding filter...\n");
+      goto CLEANUP;
+   }
+
+#if 1
+   if(setsockopt ( sockfd, IPPROTO_IP, IP_TOS, (char *)&tosval, sizeof(tosval)) < 0)
+   {
+      DPRINT_ERR(WFA_ERR, "Failed to set IP_TOS\n");
+   }
+#endif
+
+   DPRINT_INFO(WFA_OUT, "set the TOS as %d\n",tosval);
+   return (tosval == 0xE0)?0xD8:tosval;
+
+   CLEANUP:
+
+   //
+   // Cleanup
+   //
+   CleanTos_Win7(&IfcList,&pTcFilter,&pTcFlow);
+   return 0;
 }
 
 
@@ -1151,58 +1145,46 @@ int wfaTGSetPrio(int sockfd, int tgClass)
        case TG_WMM_AC_BK:
        /*Change this value to the ported device*/
 #if 0
-	   if(vend == WMM_ATHEROS)
-		tosval = 0x08;
-	   else
+    if(vend == WMM_ATHEROS)
+  tosval = 0x08;
+    else
 #endif
        tosval = TOS_BK;
        threadPrio = THREAD_PRIORITY_BELOW_NORMAL;
        break;
-       case TG_WMM_AC_BK2:
-       /* Change this value to the ported device */
-       tosval = TOS_LE;
-       threadPrio = THREAD_PRIORITY_BELOW_NORMAL;       
-       break;
+
        case TG_WMM_AC_VI:
        tosval = TOS_VI;
-       threadPrio = THREAD_PRIORITY_NORMAL;       
+       threadPrio = THREAD_PRIORITY_ABOVE_NORMAL;       
        break;
-       case TG_WMM_AC_VI2:
-       /* Change this value to the ported device */
-       tosval = TOS_VI4;
-       threadPrio = THREAD_PRIORITY_NORMAL;
-       break;
+
        case TG_WMM_AC_UAPSD:
        tosval = 0x88;
        break;
+
        case TG_WMM_AC_VO:
        /*Change this value to the ported device*/
-		   tosval=TOS_VO7;
-	   //else
+       tosval=TOS_VO7;
+       //else
        //tosval = TOS_VO;
        //tosval = 0x30;
 //#       tosval = 0x88;
-       threadPrio = THREAD_PRIORITY_ABOVE_NORMAL;       
+       threadPrio = THREAD_PRIORITY_HIGHEST;       
        break;
-       case TG_WMM_AC_VO2:
-       /*Change this value to the ported device*/
-       tosval = TOS_VO7;
-       threadPrio = THREAD_PRIORITY_ABOVE_NORMAL;       
-       break;
+
        case TG_WMM_AC_BE:
        tosval = TOS_BE;
        threadPrio = THREAD_PRIORITY_NORMAL;
        break;
-       case TG_WMM_AC_BE2:
-       tosval = TOS_EE;
-       threadPrio = THREAD_PRIORITY_NORMAL;       ;
-       break;
+
        default:
          tosval = 0x00;
            /* default */
          ;
     }
 
+    SetThreadPriority(GetCurrentThread(), threadPrio);
+#if 0
     if(tgWMMTestEnable == 0)
     {
        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
@@ -1210,7 +1192,8 @@ int wfaTGSetPrio(int sockfd, int tgClass)
     else
     {
        SetThreadPriority(GetCurrentThread(), threadPrio);
-    } 
+    }
+#endif 
 
 #ifdef WFA_WMM_EXT 
 #ifdef WFA_WMM_PS_EXT
@@ -1225,7 +1208,8 @@ int wfaTGSetPrio(int sockfd, int tgClass)
     {
        DPRINT_ERR(WFA_ERR, "Failed to set IP_TOS\n");
     }
-	printf("set the TOS as %d\n",tosval);
+
+    DPRINT_INFO(WFA_OUT, "set the TOS as %d\n",tosval);
     return (tosval == 0xE0)?0xD8:tosval;
 }
 
@@ -1274,8 +1258,8 @@ void  wfaSentStatsResp(int sock, BYTE *buf)
    int i, total=0, pkLen;
    tgStream_t *allStreams = gStreams;
    dutCmdResponse_t *sendStatsResp = (dutCmdResponse_t *)buf, *first;
-   char buff[WFA_BUFF_1K];
-   printf("wfaSentStatsResp: gstream is %d\n",gStreams);
+   char buff[WFA_BUFF_4K];
+   DPRINT_INFO(WFA_OUT, "wfaSentStatsResp: gstream is %d\n",gStreams);
    if(sendStatsResp == NULL)
       return;
 
@@ -1283,11 +1267,26 @@ void  wfaSentStatsResp(int sock, BYTE *buf)
  
    for(i = 0; i < WFA_MAX_TRAFFIC_STREAMS; i++)
    {
+#if 0
+          DPRINT_INFO(WFA_OUT, "id=%i rxFrames=%i txFrames=%i rxPayLoadBytes=%i txPayloadBytes=%i lastPktSN=%i\n", allStreams->id,
+                                  allStreams->stats.rxFrames,
+                                  allStreams->stats.txFrames,
+                                  allStreams->stats.rxPayloadBytes,
+                                  allStreams->stats.txPayloadBytes,
+                                  allStreams->lastPktSN); 
+#endif
       if((allStreams->id != 0) && (allStreams->profile.direction == DIRECT_SEND) && (allStreams->state == WFA_STREAM_ACTIVE))
       {
           sendStatsResp->status = STATUS_COMPLETE;
           sendStatsResp->streamId = allStreams->id;
           memcpy(&sendStatsResp->cmdru.stats, &allStreams->stats, sizeof(tgStats_t));          
+
+          DPRINT_INFO(WFA_OUT, "id=%i rxFrames=%i txFrames=%i rxPayLoadBytes=%i txPayloadBytes=%i lastPktSN=%i\n", allStreams->id,
+                                  allStreams->stats.rxFrames,
+                                  allStreams->stats.txFrames,
+                                  allStreams->stats.rxPayloadBytes,
+                                  allStreams->stats.txPayloadBytes,
+                                  allStreams->lastPktSN); 
 
           sendStatsResp++;
           total++;
@@ -1296,7 +1295,7 @@ void  wfaSentStatsResp(int sock, BYTE *buf)
    } 
 
 #if 0
-   printf("%i %i %i %i %i %i\n", first->cmdru.stats.txFrames,
+   DPRINT_INFO(WFA_OUT, "%i %i %i %i %i %i\n", first->cmdru.stats.txFrames,
                                   first->cmdru.stats.rxFrames,
                                   first->cmdru.stats.txPayloadBytes,
                                   first->cmdru.stats.rxPayloadBytes); 
@@ -1309,16 +1308,18 @@ void  wfaSentStatsResp(int sock, BYTE *buf)
 
 #if 0
    for(i = 0; i< pkLen; i++)
-   printf("%x ", buff[i]);
+   DPRINT_INFO(WFA_OUT, "%x ", buff[i]);
 
-   printf("\n");
+   DPRINT_INFO(WFA_OUT, "\n");
 #endif
 
    if(wfaCtrlSend(sock, (BYTE *)buff, pkLen) != pkLen)
    {
        DPRINT_WARNING(WFA_WNG, "wfaCtrlSend Error\n");
+       // reSend one more time
+       wfaCtrlSend(sock, (BYTE *)buff, pkLen);
    }
-printf("wfaSentStatsResp exit: gstream is %d\n",gStreams);
+   DPRINT_INFO(WFA_OUT, "wfaSentStatsResp exit: gstream is %d\n",gStreams);
    return;
 }
 
@@ -1344,6 +1345,7 @@ int sender(char psave,int sleep_period,int dsc)
    r = sendto(psSockfd, psTxMsg, msgsize, 0, (struct sockaddr *)&wmmps_info.psToAddr, sizeof(struct sockaddr));
    return r;
 }
+
 /*
  * wfaStaSndHello(): This function sends a Hello packet 
  *                and sleeps for sleep_period, the idea is
@@ -1561,15 +1563,17 @@ int WfaStaWaitStop(char psave,int sleep_period,int *state)
 }
 
 #endif 
+
 #ifdef _WINDOWS
 DWORD WINAPI wfa_wmm_sleep_thread(void *thr_param)
 {
-	int sleep_prd = *(int *)thr_param;
-	Sleep(sleep_prd);
+ int sleep_prd = *(int *)thr_param;
+ Sleep(sleep_prd);
     tmout_stop_send(0);
-	return 0;
+ return 0;
 }
 #endif
+
 #ifdef _WINDOWS
 DWORD WINAPI wfa_wmm_thread(void *thr_param)
 #else
@@ -1583,21 +1587,20 @@ void * wfa_wmm_thread(void *thr_param)
     int myStreamId;
     int mySock, status, respLen;
     tgProfile_t *myProfile;
-    BYTE respBuf[WFA_BUFF_1K];
-	int rdirect = DIRECT_SEND;
+    BYTE respBuf[WFA_BUFF_4K];
+ int rdirect = DIRECT_SEND;
 int resendcnt = 0;
 #ifdef WFA_WMM_PS_EXT
     StationProcStatetbl_t  curr_state;
 #endif
 #ifndef _WINDOWS
-      pthread_attr_t tattr;
-    
-      pthread_attr_init(&tattr);
-      pthread_attr_setschedpolicy(&tattr, SCHED_RR);
+    pthread_attr_t tattr;
+   
+    pthread_attr_init(&tattr);
+    pthread_attr_setschedpolicy(&tattr, SCHED_RR);
 #else
-	DWORD thr_id;
-	int timer_dur;
-
+    DWORD thr_id;
+    int timer_dur;
     int iOptVal;
     int iOptLen = sizeof(int);
 
@@ -1606,25 +1609,18 @@ int resendcnt = 0;
     while(1)
     {
 #ifdef _WINDOWS
-		printf("Prestart %d ...\n",myId);
-	    fflush(stdout);
-		while(!my_wmm->thr_flag)
-		{
-		    WaitForSingleObject( my_wmm->thr_flag_mutex, INFINITE );
-//			printf("pass the lock\n");
-//            ReleaseMutex(my_wmm->thr_flag_mutex);
-			Sleep(20);
-		}
-//            WaitForSingleObject( my_wmm->thr_flag_mutex,500);
-	
-        
-        ReleaseMutex(my_wmm->thr_flag_mutex);		
-        myStreamId = my_wmm->thr_flag;
-        my_wmm->thr_flag = 0;
-		printf("lock met %d ...\n",myId);
-#else
+       DPRINT_INFO(WFA_OUT, "Prestart %d ...\n",myId);
+       fflush(stdout);
+       while(!my_wmm->thr_flag)
+       {
+          WaitForSingleObject( my_wmm->thr_flag_mutex, INFINITE );
+          Sleep(20);
+       }
 
-
+       ReleaseMutex(my_wmm->thr_flag_mutex);  
+       myStreamId = my_wmm->thr_flag;
+       my_wmm->thr_flag = 0;
+       DPRINT_INFO(WFA_OUT, "lock met %d ...\n",myId);
 #endif
 
        /* use the flag as a stream id to file the profile */ 
@@ -1642,26 +1638,29 @@ int resendcnt = 0;
            continue;
        }
 
-       printf("start ...\n");
+       DPRINT_INFO(WFA_OUT, "start new ...\n");
        switch(myProfile->direction)
        {
            case DIRECT_SEND:
-           printf("creating socket with port %d ...\n",myProfile->sport);
+           DPRINT_INFO(WFA_OUT, "creating send socket with port %d ...\n",myProfile->sport);
            mySock = wfaCreateUDPSock(myProfile->sipaddr, myProfile->sport);
-		   if(mySock < 0)
-				break;
+           if(mySock < 0)
+           {
+               DPRINT_ERR(WFA_ERR, "can't creat socket\n");
+               break;
+           }
+
            wfaConnectUDPPeer(mySock, myProfile->dipaddr, myProfile->dport);
            /*
             * Set packet/socket priority TOS field
             */
-           //wfaTGSetPrio(mySock, myProfile->trafficClass);
-		   //wfaTGSetPrio_Win7(mySock, myProfile->trafficClass);
-		   wfaTGSetPrio_Win7( mySock, myProfile->trafficClass, myProfile);
+           DPRINT_INFOL(WFA_OUT, "To Set QoS %i\n", myProfile->trafficClass);
+           wfaTGSetPrio_Win7( mySock, myProfile->trafficClass, myProfile);
            /*
             * set a proper priority 
             */
 #ifdef resolve
-		   wfaSetThreadPrio(myId, myProfile->trafficClass);
+           wfaSetThreadPrio(myId, myProfile->trafficClass);
 #endif
            /* if delay is too long, it must be something wrong */
            if(myProfile->startdelay > 0 && myProfile->startdelay<100)
@@ -1681,204 +1680,236 @@ int resendcnt = 0;
            signal(SIGALRM, tmout_stop_send);
            alarm(myProfile->duration);
 #else
-		   
-		   printf("\r\n Thread %d Setting timer for %d ms\n",myId,1000*myProfile->duration);
-		   timer_dur = 1000*myProfile->duration;
-		   CreateThread(NULL, 0, wfa_wmm_sleep_thread, (PVOID)&timer_dur, 0,
-		   &thr_id);
-		   //my_wmm->timerid = SetTimer(0, 0, 1000*myProfile->duration, (TIMERPROC)tmout_stop_send);
-		   //printf("SetTimer returned %d\n",my_wmm->timerid);
+           DPRINT_INFO(WFA_OUT, "\r\n Thread %d Setting timer for %d ms\n",myId,1000*myProfile->duration);
+           timer_dur = 1000*myProfile->duration;
+           CreateThread(NULL, 0, wfa_wmm_sleep_thread, (PVOID)&timer_dur, 0, &thr_id);
 #endif
 
 #endif
 
            if (getsockopt(mySock, SOL_SOCKET, SO_SNDBUF, (char*)&iOptVal, &iOptLen) != SOCKET_ERROR) 
-	       {
-               printf("SO_SNDBUF Value: %ld\n", iOptVal);
+           {
+               DPRINT_INFO(WFA_OUT, "SO_SNDBUF Value: %ld\n", iOptVal);
            }
 
-	       iOptVal = iOptVal*40;
-		   //iOptVal = 262120;
-
-	       setsockopt(mySock, SOL_SOCKET, SO_SNDBUF, (char*)&iOptVal, iOptLen);
-
+           DPRINT_INFO(WFA_OUT, "SO_SNDBUF Value: %ld\n", iOptVal);
+           //iOptVal = iOptVal*40;
+//            iOptVal = 104857600;  // 100 MB
+           iOptVal = 128 * 1024;     // 128 k
+           setsockopt(mySock, SOL_SOCKET, SO_SNDBUF, (char*)&iOptVal, iOptLen);
+           DPRINT_INFO(WFA_OUT, "SO_SNDBUF Value: %ld\n", iOptVal);
            if (getsockopt(mySock, SOL_SOCKET, SO_SNDBUF, (char*)&iOptVal, &iOptLen) != SOCKET_ERROR) 
-		   {
-               printf("SO_SNDBUF Value: %ld\n", iOptVal);
+           {
+               DPRINT_INFO(WFA_OUT, "SO_SNDBUF Value: %ld\n", iOptVal);
            }
 
            wfaSendLongFile(mySock, myStreamId, respBuf, &respLen);
-		   //KillTimer(NULL,my_wmm->timerid);
            memset(respBuf, 0, WFA_BUFF_1K);
 #ifdef _WINDOWS
-		   printf("\r\n Closing socket for thread %d",myId);
-		   closesocket(mySock);
+           DPRINT_INFO(WFA_OUT, "\r\n Closing socket for thread %d",myId);
+           // reset the buffer size
+           //iOptVal = 8192;
+           //setsockopt(mySock, SOL_SOCKET, SO_SNDBUF, (char*)&iOptVal, iOptLen);
+
+           closesocket(mySock);
            Sleep(1000);
 #else
            sleep(1);
 #endif
 
-	       /*
+           /*
             * uses thread 0 to pack the items and ships it to CA.
             */
-           //SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
-	       if(myId == mainSendThread) {
-		       wfaSentStatsResp(gxcSockfd, respBuf);
-			   newCmdOn = 0;
-	       
-               resendcnt = 0;
-		       while(newCmdOn == 0 && resendcnt < 2)
-		       {
-		           Sleep(3000);
-                   wfaSentStatsResp(gxcSockfd, respBuf);
-			       resendcnt++;
-		       }
-			   printf("finish resendsn %i", resendcnt);
-		   }
-           SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
-		   
-#if 0
-		   if(newCmdOn == 1)
-              CreateThread(NULL, 0, wfa_traffic_resend_results_thread, (PVOID)&rdirect, 0, &thr_id);
-#endif
+           if(myId == mainSendThread) 
+           {
+              wfaSentStatsResp(gxcSockfd, respBuf);
+              newCmdOn = 0;
+              resendcnt = 0;
+              while(newCmdOn == 0 && resendcnt < 1)
+              {
+                 Sleep(3000);
+                 wfaSentStatsResp(gxcSockfd, respBuf);
+                 resendcnt++;
+              }
+              Sleep(3000);
+
+              // !!!!! a hack !!!!!!
+              
+              if(hasRecv == 0)
+              {
+                  printf("hasRecv == %i\n", hasRecv);
+                  exit(0);
+              }
+              DPRINT_INFO(WFA_OUT, "finish resendsn %i", resendcnt);
+           }
+
+           SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
            break;
 
-	   case DIRECT_RECV:
+           case DIRECT_RECV:
 #ifdef WFA_WMM_PS_EXT
            /*
             * Test WMM-PS
             */
            if(myProfile->profile == PROF_UAPSD)
            {
+              wmmps_info.sta_test = B_D;
+              wmmps_info.ps_thread = myId;
+              wmmps_info.rcv_state = 0;
+              wmmps_info.tdata = tdata;
+              wmmps_info.dscp = wfaTGSetPrio(psSockfd, TG_WMM_AC_BE);
+              tdata->state_num=0;
+              /*
+               * default timer value
+               */
 
-		
-                wmmps_info.sta_test = B_D;
-                wmmps_info.ps_thread = myId;
-                wmmps_info.rcv_state = 0;
-                wmmps_info.tdata = tdata;
-  		wmmps_info.dscp = wfaTGSetPrio(psSockfd, TG_WMM_AC_BE);
-            	tdata->state_num=0;
-               /*
-                * default timer value
-                */
-
-
-               while(gtgWmmPS>0)
-               {
-                        if(resetsnd)
-                        {
-                          tdata->state_num = 0;
-                          resetsnd = 0;
-                        }
-            		tdata->state =  stationProcStatetbl[wmmps_info.sta_test];
-      			curr_state = tdata->state[tdata->state_num];
-      			curr_state.statefunc(curr_state.pw_offon,curr_state.sleep_period,&(tdata->state_num));
-               }
+              while(gtgWmmPS>0)
+              {
+                 if(resetsnd)
+                 {
+                    tdata->state_num = 0;
+                    resetsnd = 0;
+                 }
+                 tdata->state =  stationProcStatetbl[wmmps_info.sta_test];
+                 curr_state = tdata->state[tdata->state_num];
+                 curr_state.statefunc(curr_state.pw_offon,curr_state.sleep_period,&(tdata->state_num));
+              }
            }
            
 #endif /* WFA_WMM_PS_EXT */
-
-		   if(myProfile->profile == PROF_IPTV || myProfile->profile == PROF_FILE_TX || myProfile->profile == PROF_MCAST)
-		   {
-			    int nbytes = 0;
-                char recvBuf[3072];
-				int iOptVal, iOptLen;
-//				struct timeval tmout;
+           if(myProfile->profile == PROF_IPTV || myProfile->profile == PROF_FILE_TX || myProfile->profile == PROF_MCAST)
+           {
+              int nbytes = 0;
+              char recvBuf[MAX_RCV_BUF_LEN+1]; /* 32*1024 + 1 = 32K */
+              int iOptVal, iOptLen;
 
 #ifdef WFA_WMM_EXT
-				struct timeval currtime;
-				FILE *e2eoutp = NULL;
-				char e2eResults[124];
-				int le2eCnt = 0;
-				tgE2EStats_t *e2esp = NULL;
-				int totalE2Cnt = 6000;
+              struct timeval currtime;
+              FILE *e2eoutp = NULL;
+              char e2eResults[124];
+              int le2eCnt = 0;
+              tgE2EStats_t *e2esp = NULL;
+              int totalE2Cnt = 6000;
 #endif
 
-				mySock = wfaCreateUDPSock(myProfile->sipaddr, myProfile->sport);
-                tgSockfds[myStream->tblidx] = mySock;
-
+              mySock = wfaCreateUDPSock(myProfile->sipaddr, myProfile->sport);
+              tgSockfds[myStream->tblidx] = mySock;
 #ifdef WFA_WMM_EXT
-				
+    
 
-				if(myProfile->profile == PROF_IPTV)
-				{
-					e2esp = (tgE2EStats_t *)malloc(totalE2Cnt * sizeof(tgE2EStats_t));
-					if(e2esp == NULL)
-					{
-					}
-				}
-				myStream->e2ebuf = e2esp;
+              if(myProfile->profile == PROF_IPTV)
+              {
+                 e2esp = (tgE2EStats_t *)malloc(totalE2Cnt * sizeof(tgE2EStats_t));
+                 if(e2esp == NULL)
+                 {
+                    DPRINT_INFOL(WFA_OUT, "Failed to malloc e2esp\n");
+                 }
+              }
+              myStream->e2ebuf = e2esp;
 #endif
-                if (getsockopt(mySock, SOL_SOCKET, SO_RCVBUF, (char*)&iOptVal, &iOptLen) != SOCKET_ERROR) 
-	            {
-                    printf("SO_RCVBUF Value: %ld\n", iOptVal);
-                }
+              if (getsockopt(mySock, SOL_SOCKET, SO_RCVBUF, (char*)&iOptVal, &iOptLen) != SOCKET_ERROR) 
+              {
+                 DPRINT_INFO(WFA_OUT, "Current SO_RCVBUF Value: %ld\n", iOptVal);
+              }
 
-	            iOptVal = iOptVal*40;
-		        //iOptVal = 262120;
+//              iOptVal = iOptVal*40;
+//              iOptVal = 104857600;  // 100 MB 10485760 
+//              iOptVal = 209715200;    //200
+              iOptVal = 128 * 1024; // 128 K
+              setsockopt(mySock, SOL_SOCKET, SO_RCVBUF, (char*)&iOptVal, iOptLen);
 
-	            setsockopt(mySock, SOL_SOCKET, SO_RCVBUF, (char*)&iOptVal, iOptLen);
+              if (getsockopt(mySock, SOL_SOCKET, SO_RCVBUF, (char*)&iOptVal, &iOptLen) != SOCKET_ERROR) 
+              {
+                 DPRINT_INFO(WFA_OUT, "set SO_RCVBUF Value: %ld\n", iOptVal);
+              }
+              else
+                 DPRINT_INFO(WFA_OUT, "Can't set RCV buffer size\n");
 
-                if (getsockopt(mySock, SOL_SOCKET, SO_RCVBUF, (char*)&iOptVal, &iOptLen) != SOCKET_ERROR) 
-		        {
-                    printf("SO_RCVBUF Value: %ld\n", iOptVal);
-                }
+              for (;;)
+              {
+                  nbytes = wfaRecvFile(mySock, myStreamId, (char  *)recvBuf);
+                  if(nbytes== -1)
+                  {
+                     DPRINT_INFO(WFA_OUT, "Error packet recving\n");
+                     break;
+                  }
+              } /* for */
 
-                for (;;)
-		        {
-                    nbytes = wfaRecvFile(mySock, myStreamId, (char  *)recvBuf);
-			        if(nbytes== -1)
-			        {
-				        printf("Error recving\n");
-#if 0
-						if(mySock
-						close(mySock);
-						mySock = -1;
-                        tgSockfds[myStream->tblidx] = -1;
-#endif
-						break;
-			        }
+              my_wmm->thr_flag = 0;
 
+              if(myProfile->profile == PROF_IPTV)
+              {
+                 int j;
 
-
-		        } /* for */
-
-				my_wmm->thr_flag = 0;
-
-				if(myProfile->profile == PROF_IPTV)
-				{
-					int j;
-
-					gettimeofday(&currtime, NULL);
+                 gettimeofday(&currtime, NULL);
 #ifndef _WINDOWS
-	                sprintf(e2eResults, "/tmp/e2e%u.txt", (unsigned int) currtime.tv_sec); 
+                 sprintf(e2eResults, "/tmp/e2e%u.txt", (unsigned int) currtime.tv_sec); 
 #else
-	                sprintf(e2eResults, "c:\\windows\\temp\\e2e%u.txt", (unsigned int) currtime.tv_sec); 
+                 sprintf(e2eResults, "c:\\windows\\temp\\e2e%u.txt", (unsigned int) currtime.tv_sec); 
 #endif
-					printf("storage file %s to have cnt %i records\n", e2eResults, myStream->stats.rxFrames);
-					e2eoutp = fopen(e2eResults, "w+");
-					if(e2eoutp != NULL)
-					{
-						fprintf(e2eoutp, "roundtrip delay: %i\n", (int) (1000000*gtgPktRTDelay));
+                 DPRINT_INFOL(WFA_OUT, "storage file %s to have cnt %i records\n", e2eResults, myStream->stats.rxFrames);
+                 e2eoutp = fopen(e2eResults, "w+");
+                 if(e2eoutp != NULL)
+                 {
+                    fprintf(e2eoutp, "roundtrip delay: %i\n", (int) (1000000*gtgPktRTDelay));
 
-						for(j = 0; j<totalE2Cnt && j < myStream->stats.rxFrames; j++)
-						{
-							tgE2EStats_t *ep = e2esp+j;
-							fprintf(e2eoutp, "%i:%i:%i:%i:%i\n", ep->seqnum, ep->lsec, ep->lusec, ep->rsec, ep->rusec);
-							
-						}
-						fclose(e2eoutp);
-					}
+                    for(j = 0; j<totalE2Cnt && j < (int) myStream->stats.rxFrames; j++)
+                    {
+                       tgE2EStats_t *ep = e2esp+j;
+                       fprintf(e2eoutp, "%i:%i:%i:%i:%i\n", ep->seqnum, ep->lsec, ep->lusec, ep->rsec, ep->rusec);
+                    }
+                    fclose(e2eoutp);
+                 }
 
-					if(e2esp!= NULL)
-						free(e2esp);
-				}
+                 if(e2esp!= NULL)
+                    free(e2esp);
+              }
+          }
+          else if (myProfile->profile == PROF_TRANSC)
+          {
+              mySock = wfaCreateUDPSock(myProfile->sipaddr, myProfile->sport);
+              if(mySock < 0)
+              {
+                  my_wmm->thr_flag = 0;
+                  continue;
+              }
 
-		   }
+              tgSockfds[myStream->tblidx] = mySock;
+              totalTranPkts = 0xFFFFFFF0;
+              gtgTransac = myStreamId;
 
-           break;
-           default:
-              DPRINT_ERR(WFA_ERR, "Unknown covered case\n");
+              while(gtgTransac != 0)
+              {
+                 BYTE recvBuf[MAX_RCV_BUF_LEN+1];
+                 int nbytes = 0, respLen = 0;
+                 memset(recvBuf,0, sizeof(recvBuf));
+                 if(mySock != -1)
+                 {
+                     int i = gtgTransac;
+
+                     nbytes = wfaRecvFile(mySock, i, (char *)recvBuf);
+                     if(nbytes <= 0)
+                        break;
+
+                 }
+                 else
+                 {
+                    break;
+                 }
+                     
+                 if(wfaSendShortFile(mySock, gtgTransac, recvBuf, nbytes, respBuf, &respLen) == -1)
+                 {
+                    if(wfaCtrlSend(gxcSockfd, (BYTE *)respBuf, respLen) != respLen)
+                    {
+                        DPRINT_WARNING(WFA_WNG, "wfaCtrlSend Error\n");
+                    }
+                 }
+              }
+          }
+           
+          break;
+          default:
+          DPRINT_ERR(WFA_ERR, "Unknown covered case\n");
        }
 
     }
