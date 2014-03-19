@@ -409,7 +409,11 @@ int wfaTrafficRecv(int sock, char *buf, struct sockaddr *from)
    if(buf == NULL)
    {
 	   DPRINT_ERR(WFA_ERR, "Uninitialized buffer\n");
-	   return FALSE;
+       //<<<------------------------------------------------------------
+       //jira issue: SIG-465 - return -1 instead of FALSE which is 0
+	   ////return FALSE;       
+       return WFA_ERROR;
+       //------------------------------------------------------------>>>
    }
 
    bytesRecvd = recvfrom(sock, buf, MAX_UDP_LEN, 0, from, &addrLen); 
