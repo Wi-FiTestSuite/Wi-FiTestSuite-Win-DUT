@@ -3150,8 +3150,8 @@ int wfaStaSetPSKWpaSupplicant(int len, BYTE *caCmdBuf, int *respLen, BYTE *respB
 	  fputs(gCmdStr, file);
 	  sprintf(gCmdStr,"}\n");
   	  fputs(gCmdStr, file);
-  }
-  fclose(file);
+    }
+    fclose(file);
 
   /* start the service and stop the service */
 
@@ -3239,20 +3239,29 @@ file = fopen("c:\\WFA\\tmp.xml", "w+");
     fputs(gCmdStr, file);
     sprintf(gCmdStr,"\t\t\t<authEncryption>\n");
     fputs(gCmdStr, file);
-   if(setPSK->encpType == ENCRYPT_TKIP)
+    if(setPSK->encpType == ENCRYPT_TKIP)
     {
     	sprintf(gCmdStr,"\t\t\t<authentication>WPAPSK</authentication>\n");
     	fputs(gCmdStr, file);
     	sprintf(gCmdStr,"\t\t\t<encryption>TKIP</encryption>\n");
     	fputs(gCmdStr, file);
     }
-   else if(setPSK->encpType == ENCRYPT_AESCCMP)
+    else if(setPSK->encpType == ENCRYPT_AESCCMP)
     {
     	sprintf(gCmdStr,"\t\t\t<authentication>WPA2PSK</authentication>\n");
     	fputs(gCmdStr, file);
     	sprintf(gCmdStr,"\t\t\t<encryption>AES</encryption>\n");
     	fputs(gCmdStr, file);
     }
+    else if(setPSK->encpType == ENCRYPT_AESCCMP_TKIP)
+    {
+        setPskResp->status = STATUS_INVALID;
+        wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
+        *respLen = WFA_TLV_HDR_LEN + 4;
+        fclose(file);
+        return TRUE;
+    }
+
     sprintf(gCmdStr,"\t\t\t <useOneX>false</useOneX>\n");
     fputs(gCmdStr, file);
     sprintf(gCmdStr,"\t\t\t</authEncryption>\n");
@@ -3302,9 +3311,7 @@ file = fopen("c:\\WFA\\tmp.xml", "w+");
 				 {
 					 strcpy(&Interfacename[0],str);
 				 }
-
 			  }
-
 	}
 
    sprintf(gCmdStr, "netsh wlan add profile filename=\"%s\" interface=\"%s\" user=all","c:\\WFA\\tmp.xml",&Interfacename[0]);
@@ -3394,10 +3401,15 @@ int wfaStaSetPSK(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 #else 
    switch(geSupplicant)
    {
+       //add Default and Win7Supplicant supplicants and set them to use zeroconfig
+       case eDefault:
+       case eWin7Supplicant:
+       //
 	   case eWindowsZeroConfig:
 		   wfaStaSetPSKZeroConfig(len,caCmdBuf,respLen,respBuf);			
 		   break;
-	   case eMarvell:
+       //comment out the following code and use zeroconfig supplicant only for Win7 DUT
+	   /*case eMarvell:
 		   wfaStaSetPSKMarvellSupplicant(len,caCmdBuf,respLen,respBuf);	
 		   break;
 	   case eWpaSupplicant:
@@ -3407,7 +3419,7 @@ int wfaStaSetPSK(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 		   wfaStaSetPSKCiscoSupplicant(len,caCmdBuf,respLen,respBuf);
 		   break;
 	   case eOpen1x:
-		   break;
+		   break;*/
 	   default:
 		   setPskResp->status = STATUS_INVALID;
 		   wfaEncodeTLV(WFA_STA_SET_PSK_RESP_TLV, 4, (BYTE *)setPskResp, respBuf);   
