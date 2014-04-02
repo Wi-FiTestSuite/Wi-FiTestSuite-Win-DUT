@@ -186,11 +186,8 @@ typedef struct ca_sta_set_psk
    char intf[WFA_IF_NAME_LEN];
    char ssid[WFA_SSID_NAME_LEN];
    BYTE passphrase[64];
-   char keyMgmtType[16];  /* WPA-PSK */
+   char keyMgmtType[8];  /* WPA-PSK */
    int encpType;    /* TKIP    */
-   BOOL perfer;
-   char micAlg[16];
-   char prog[16];
 } caStaSetPSK_t;
 
 typedef struct ca_sta_set_eaptls
@@ -213,9 +210,6 @@ typedef struct ca_sta_set_eapttls
    char encrptype[9];
    char trustedRootCA[32];
    char clientCertificate[32];
-   BOOL perfer;
-   char micAlg[16];
-   char prog[16];
 } caStaSetEapTTLS_t;
 
 typedef struct ca_sta_set_eapsim

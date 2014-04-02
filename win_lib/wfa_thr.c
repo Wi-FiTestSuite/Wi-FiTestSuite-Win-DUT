@@ -835,16 +835,6 @@ int resendcnt = 0;
                 for (;;)
 		        {
                     nbytes = wfaRecvFile(mySock, myStreamId, (char  *)recvBuf);
-
-                    //<<<----------------------------------------------------------------------------------------
-                    //jira issue: SIG-465
-                    //To enusre the loop exit if the nbytes becomes 0 due to the graceful closure of remote socket
-                    if (nbytes==0)
-                    {
-                      DPRINT_ERR(WFA_OUT, "The connection has been gracefully closed, the return value is zero");
-                      break;
-                    }
-                    //---------------------------------------------------------------------------------------->>>
 			        if(nbytes== -1)
 			        {
 				        printf("Error recving\n");

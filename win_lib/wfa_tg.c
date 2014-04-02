@@ -302,14 +302,7 @@ int wfaTGSendPing(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
     {
     case WFA_PING_ICMP_ECHO:
 #ifndef WFA_PING_UDP_ECHO_ONLY
-
-        //<<<----------------------------------------------------
-        //jira issue: SIG-523
-        //totalpkts should be integer
-        //in Win7 DUT, interval should be also integer
-        totalpkts = (int)(staPing->duration * staPing->frameRate);
-        ////totalpkts = staPing->duration * staPing->frameRate;
-        //---------------------------------------------------->>>
+        totalpkts = staPing->duration * staPing->frameRate;
 
 #if !defined(_CYGWIN) && !defined(_WINDOWS)
         sprintf(cmdStr, "echo streamid=%i > /tmp/spout.txt; /bin/ping %s -i %f -c %i -s %i -q >> /tmp/spout.txt 2>/dev/null&",
@@ -1859,11 +1852,7 @@ int wfaRecvFile(int mySockfd, int streamid, char *recvBuf)
     theProf = &myStream->profile;
     if(theProf == NULL)
     {
-        //<<<-----------------------
-        //jira issue: SIG-465
-        ////return FALSE;
-        return WFA_ERROR;
-        //------------------------>>>
+        return FALSE;
     }
 
     memset(packBuf, 0, MAX_UDP_LEN);

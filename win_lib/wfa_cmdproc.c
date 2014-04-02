@@ -1218,7 +1218,7 @@ int xcCmdProcStaSetPSK(char *pcmdStr, BYTE *aBuf, int *aLen)
         else if(strcasecmp(str, "keyMgmtType") == 0)
         {
             str=strtok_r(NULL, ",", &pcmdStr);
-            strncpy(setencryp->keyMgmtType, str, 15);
+            strncpy(setencryp->keyMgmtType, str, 7);
         }
         else if(strcasecmp(str, "encpType") == 0)
         {
@@ -1228,26 +1228,6 @@ int xcCmdProcStaSetPSK(char *pcmdStr, BYTE *aBuf, int *aLen)
                setencryp->encpType = ENCRYPT_TKIP;
             else if(strcasecmp(str, "aes-ccmp") == 0)
                setencryp->encpType = ENCRYPT_AESCCMP;
-            else if (strcasecmp(str, "aes-ccmp-tkip") == 0)
-                setencryp->encpType = ENCRYPT_AESCCMP_TKIP;
-        }
-        else if(strcasecmp(str, "Prog") == 0)
-        {
-            str = strtok_r(NULL, ",", &pcmdStr);
-            strncpy(setencryp->prog, str, 15);
-        }
-        else if(strcasecmp(str, "micAlg") == 0)
-        {
-            str = strtok_r(NULL, ",", &pcmdStr);
-            if (strcasecmp(str, "SHA-1") != 0)
-                strncpy(setencryp->micAlg, str, 15);
-            else
-                strncpy(setencryp->micAlg, "SHA-1", 15);
-        }
-        else if(strcasecmp(str, "Perfer") == 0)
-        {
-            str = strtok_r(NULL, ",", &pcmdStr);
-            setencryp->perfer = (atoi(str) == 1)?1:0;
         }
     }
             
@@ -1287,7 +1267,7 @@ int xcCmdProcStaSetEapTLS(char *pcmdStr, BYTE *aBuf, int *aLen)
         else if(strcasecmp(str, "keyMgmtType") == 0)
         {
             str=strtok_r(NULL, ",", &pcmdStr);
-            strncpy(setsec->keyMgmtType, str, 7);
+            strncpy(setsec->keyMgmtType, str, 8);
         }
         else if(strcasecmp(str, "encpType") == 0)
         {
@@ -1368,24 +1348,6 @@ int xcCmdProcStaSetEapTTLS(char *pcmdStr, BYTE *aBuf, int *aLen)
         {
             str = strtok_r(NULL, ",", &pcmdStr);
             strcpy(setsec->clientCertificate, str);
-        }
-        else if(strcasecmp(str, "Prog") == 0)
-        {
-            str = strtok_r(NULL, ",", &pcmdStr);
-            strncpy(setsec->prog, str, 15);
-        }
-        else if(strcasecmp(str, "micAlg") == 0)
-        {
-            str = strtok_r(NULL, ",", &pcmdStr);
-            if (strcasecmp(str, "SHA-1") != 0)
-                strncpy(setsec->micAlg, str, 15);
-            else
-                strncpy(setsec->micAlg, "SHA-1", 15);
-        }
-        else if(strcasecmp(str, "Perfer") == 0)
-        {
-            str = strtok_r(NULL, ",", &pcmdStr);
-            setsec->perfer = (atoi(str) == 1)?1:0;
         }
     }
 
@@ -2275,14 +2237,15 @@ int xcCmdProcStaPresetTestParameters(char *pcmdStr, BYTE *aBuf, int *aLen)
 {
     caStaPresetParameters_t *presetTestParams = (caStaPresetParameters_t *) (aBuf+sizeof(wfaTLV));
     char *str;
-	//caStaPresetParameters_t initParams = { "0", 0, 0, 0x00, 0x0000, 0x00, 0x0000, 0x00, 0, 0x00, 0, 0xFF};
+	caStaPresetParameters_t initParams = { "0", 0, 0, 0x00, 0x0000, 0x00, 0x0000, 0x00, 0, 0x00, 0, 0xFF};
+
 
     if(aBuf == NULL)
         return FALSE;
    
     memset(aBuf, 0, *aLen);
-    memset(presetTestParams, 0, sizeof(caStaPresetParameters_t));
-	//memcpy(presetTestParams, &initParams, sizeof(caStaPresetParameters_t));
+
+	memcpy(presetTestParams, &initParams, sizeof(caStaPresetParameters_t));
 
     for(;;)
     {
@@ -2327,14 +2290,13 @@ int xcCmdProcStaPresetTestParameters(char *pcmdStr, BYTE *aBuf, int *aLen)
 			}
 			else if(strcasecmp(str, "Intel") == 0)
 			{
-			   //str = strtok_r(NULL, ",", &pcmdStr);
+			  // str = strtok_r(NULL, ",", &pcmdStr);
 			   presetTestParams->supplicant = eIntelProset;
 			}			
 			else if(strcasecmp(str, "Default") == 0)
 			{
 			   //str = strtok_r(NULL, ",", &pcmdStr);
-			   ////presetTestParams->supplicant = eWpaSupplicant;
-               presetTestParams->supplicant = eWindowsZeroConfig;
+			   presetTestParams->supplicant = eWpaSupplicant;
 			}
 		}
 		else if(strcasecmp(str, "RTS") == 0)

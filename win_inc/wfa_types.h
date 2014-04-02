@@ -111,10 +111,6 @@ typedef enum returnTypes
 {
    WFA_SUCCESS = 0,
    WFA_FAILURE = 1,
-   //<<<---------------------
-   //jira issue: SIG-465
-   WFA_ERROR = -1,
-   //--------------------->>>
 } retType_t;
 
 #endif
