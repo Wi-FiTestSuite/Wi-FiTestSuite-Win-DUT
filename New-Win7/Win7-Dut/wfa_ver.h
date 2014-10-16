@@ -56,7 +56,7 @@
 #ifndef WFA_VER_H
 #define WFA_VER_H
 
-#define WFA_SYSTEM_VER      "WIN7DUT-v08.00.00-HT"        /* Sigma WIN_DUT V3.01.01
+#define WFA_SYSTEM_VER      "WIN7DUT-v08.01.01-HT"        /* Sigma WIN_DUT V3.01.01
                                                      -- Buffer adjustment to larger size.
                                                      -- REWRITE THE RECEIVING FUNCTION FOR WINDOWS. EACH THREAD TO HANDLE A 
                                                         SINGLE RECEIVING.
@@ -68,6 +68,10 @@
 													 - ( merge of TDLS + HotSpot PF#2)
 													 SIGMA WIN 7 DUT for SIGMA 5.0.0 Release 
 													 SIGMA WIN 7 DUT for SIGMA 7.1.0 Release 
+                                                     
+                                                     Sigma WIN7_DUT v08.01.01-HT
+                                                     -- multicast profile support fix
+                                                     -- lift the verions number from 08.00.00 to 08.01.01 due to the recent Sigma 8.1 release
 												  */
 
 #endif
