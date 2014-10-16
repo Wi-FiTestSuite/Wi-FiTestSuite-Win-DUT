@@ -624,8 +624,12 @@ int wfaTGRecvStart(int len, BYTE *parms, int *respLen, BYTE *respBuf)
             so = wfaSetSockMcastRecvOpt(btSockfd, theProfile->dipaddr);
             if(so < 0)
             {
-                perror("set mcastat: ");
-                DPRINT_ERR(WFA_ERR, "setsockopt at %: ", theProfile->dipaddr);
+                //<<<--------------------------------------------------------------
+                //jira issues: SIG-542
+                ////perror("set mcastat: ");
+                ////DPRINT_ERR(WFA_ERR, "setsockopt at %: ", theProfile->dipaddr);
+                DPRINT_ERR(WFA_ERR, "setsockopt at %s\n", theProfile->dipaddr);
+                //--------------------------------------------------------------->>>
                 CLOSE(btSockfd);
                 gtgRecv = 0;
                 status = STATUS_ERROR;

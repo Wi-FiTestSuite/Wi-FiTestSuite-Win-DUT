@@ -58,6 +58,10 @@
 #include "stdafx.h"
 #ifdef _WINDOWS
 #include <winsock2.h>
+//<<<--------------------
+//jira issue: SIG-542
+#include <ws2tcpip.h>
+//---------------------->>>
 #else
 #include <pthread.h>
 #include <arpa/inet.h>
@@ -197,15 +201,20 @@ int wfaCreateUDPSock(char *ipaddr, unsigned short port)
     return udpsock;
 }
 
-#define IP_MULTICAST_TTL    3           /* set/get IP multicast timetolive  */
-#define IP_ADD_MEMBERSHIP   5           /* add  an IP group membership      */
-/*
- * Argument structure for IP_ADD_MEMBERSHIP and IP_DROP_MEMBERSHIP.
- */
-struct ip_mreq {
-        struct in_addr  imr_multiaddr;  /* IP multicast address of group */
-        struct in_addr  imr_interface;  /* local IP address of interface */
-};
+//<<<------------------------------------------------------------------------------
+//jira issue: SIG-542
+//redundant definitions, which are already defined in ws2tcpip.h
+
+////#define IP_MULTICAST_TTL    3           /* set/get IP multicast timetolive  */
+////#define IP_ADD_MEMBERSHIP   5           /* add  an IP group membership      */
+/////*
+//// * Argument structure for IP_ADD_MEMBERSHIP and IP_DROP_MEMBERSHIP.
+//// */
+////struct ip_mreq {
+////        struct in_addr  imr_multiaddr;  /* IP multicast address of group */
+////        struct in_addr  imr_interface;  /* local IP address of interface */
+////};
+//------------------------------------------------------------------------------>>>
 
 int wfaSetSockMcastSendOpt(int sockfd)
 {
