@@ -191,7 +191,8 @@ DWORD recvThr;
 
 DWORD WINAPI wfa_recv_thread(void *thr_param)
 {
-   char recvBuf[3072];
+   //char recvBuf[3072];
+   char recvBuf[32769];
    int newRelease = 0;
 
    DPRINT_INFOL(WFA_OUT, "Entering ...\n");
@@ -598,7 +599,7 @@ main(int argc, char **argv)
                 if(xcCmdTag == WFA_TRAFFIC_AGENT_RECV_STOP_TLV)
                 {
                    
-                   printf("Exiting from Recv %s\n", hasRecv);
+                   ///printf("Exiting from Recv %s\n", hasRecv);
                    Sleep(3000);
                    exit(0);
                 }

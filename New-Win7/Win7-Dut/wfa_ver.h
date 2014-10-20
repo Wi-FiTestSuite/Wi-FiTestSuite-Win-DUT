@@ -56,7 +56,7 @@
 #ifndef WFA_VER_H
 #define WFA_VER_H
 
-#define WFA_SYSTEM_VER      "WIN7DUT-v08.01.01-HT"        /* Sigma WIN_DUT V3.01.01
+#define WFA_SYSTEM_VER      "WIN7DUT-v08.01.02-HT"        /* Sigma WIN_DUT V3.01.01
                                                      -- Buffer adjustment to larger size.
                                                      -- REWRITE THE RECEIVING FUNCTION FOR WINDOWS. EACH THREAD TO HANDLE A 
                                                         SINGLE RECEIVING.
