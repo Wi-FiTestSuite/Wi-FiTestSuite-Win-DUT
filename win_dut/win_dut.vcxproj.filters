@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\win_lib\wfa_cmdtbl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win_lib\wfa_wmmps.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win_lib\wfa_cs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="win_dut\wfa_dut.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="win_dut\wfa_dut_init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win_lib\wfa_miscs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win_lib\wfa_sock.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win_lib\wfa_tg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win_lib\wfa_thr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win_lib\wfa_tlv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win_lib\wfa_wmm_tc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\win_inc\iphdr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_cmds.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\resolve.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="win_dut\wfa_dut.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_main.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_miscs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_sock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_rsp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_tg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_tlv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_ver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\win_inc\wfa_wmmps.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{ebbcf369-fb94-495a-bcc5-2c24396ea5e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources Files">
+      <UniqueIdentifier>{8356e967-76e8-46df-b497-7947a8292d12}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{3aacd0fb-f035-4985-8872-fad5f8f20753}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

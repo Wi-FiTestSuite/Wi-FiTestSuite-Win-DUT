@@ -1,0 +1,126 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A0D02A3A-4CD6-48EB-835D-E8612F4F53C1}</ProjectGuid>
+    <RootNamespace>win_ca</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+    <ReferencePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\win_inc;..\win_lib;..\win_dut;$(ReferencePath)</ReferencePath>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Configuration)\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
+    <ReferencePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VCInstallDir)atlmfc\lib;$(VCInstallDir)lib</ReferencePath>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(Configuration)\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\win_inc;..\..\external\pthreadlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;WFA_WMM_EXT;WFA_WMM_PS_EXT;_WINDOWS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <TargetMachine>MachineX86</TargetMachine>
+      <AdditionalLibraryDirectories>..\..\external\pthreadlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>..\win_ca\win_ca;..\win_inc;..\external\pthreadlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;WFA_WMM_EXT;WFA_WMM_PS_EXT;_WINDOWS;TGN_TB_STATION;_X86_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>Ws2_32.lib;Traffic.lib;pthreadVSE2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX86</TargetMachine>
+      <AdditionalLibraryDirectories>..\external\pthreadlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="win_ca\wfa_ca.c" />
+    <ClCompile Include="..\win_lib\wfa_ca_resp.c" />
+    <ClCompile Include="..\win_lib\wfa_cmdproc.c" />
+    <ClCompile Include="..\win_lib\wfa_miscs.c" />
+    <ClCompile Include="..\win_lib\wfa_sock.c" />
+    <ClCompile Include="..\win_lib\wfa_tlv.c" />
+    <ClCompile Include="..\win_lib\wfa_typestr.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\win_inc\iphdr.h" />
+    <ClInclude Include="..\win_inc\wfa_ca_resp.h" />
+    <ClInclude Include="..\win_inc\wfa_cmds.h" />
+    <ClInclude Include="..\win_inc\wfa_debug.h" />
+    <ClInclude Include="..\win_inc\wfa_main.h" />
+    <ClInclude Include="..\win_inc\wfa_miscs.h" />
+    <ClInclude Include="..\win_inc\wfa_rsp.h" />
+    <ClInclude Include="..\win_inc\wfa_sock.h" />
+    <ClInclude Include="..\win_inc\wfa_tg.h" />
+    <ClInclude Include="..\win_inc\wfa_tlv.h" />
+    <ClInclude Include="..\win_inc\wfa_types.h" />
+    <ClInclude Include="..\win_inc\wfa_ver.h" />
+    <ClInclude Include="win_ca\wfa_ca.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
