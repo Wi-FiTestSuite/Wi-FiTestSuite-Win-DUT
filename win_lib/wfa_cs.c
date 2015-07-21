@@ -58,11 +58,13 @@ int agtCmdProcGetVersion(int len, BYTE *parms, int *respLen, BYTE *respBuf)
 	return WFA_SUCCESS;
 }
 
-/*
-* wfaStaAssociate():
-*    The function is to force the station wireless I/F to re/associate 
-*    with the AP.
-*/
+/** Force the station wireless I/F to re/associate with the AP
+ * @param len not used.
+ * @param caCmdBuf A buffer containing the command passed from control agent.
+ * @param respLen The length of the command response string.
+ * @param respBuf An already allocated buffer to store the command response.
+ * @return 0 as success.
+ */
 int wfaStaAssociate(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 {
 	dutCommand_t *assoc = (dutCommand_t *)caCmdBuf;
@@ -3219,25 +3221,20 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	int CmdReturnFlag;
 	int ret = 0;
 	int ckcnt = 1; //fix: moved to here
-
-	//<<<--------------------------------
-	//jira issue: SIG-593    
+    int i = 0;
+    int paramFlag = 0;
+	
 	char prog[16];
 	char *result;
 	char cmdStr1[WFA_CMD_STR_SZ];
-	char *arryPtr;
-	//--------------------------------->>>
+	char *arryPtr;	
 
 	caStaCliCmdResp_t infoResp;
 
 	DPRINT_INFOL(WFA_OUT, "\nEntry wfaStaCliCommand... \n");
 
 	DPRINT_INFOL(WFA_OUT, "\nThe command Received: %s\n",caCmdBuf);
-
-	//<<<-------------------------------------------------------------------------------------------------------------------------
-	//jira issue: SIG-593
-	//fix: for sta_reset_default command, this function is called instead of going to wfaStaResetDefault() in the wfa_cs.c file
-	//In order to set the progSet variable, need to intercept the logic here    
+	
 	if (strstr((char *)caCmdBuf, "sta_reset_default") != NULL)
 	{
 		strncpy(cmdStr1, (char *)caCmdBuf, WFA_CMD_STR_SZ);
@@ -3260,8 +3257,7 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 
 		DPRINT_INFOL(WFA_OUT, "progSet value=%d\n", wfaDutAgentCAPIData.progSet);
 	}
-	//-------------------------------------------------------------------------------------------------------------------------->>>
-
+	
 	memcpy(cmdName, strtok_r((char *)caCmdBuf, ",", (char **)&pcmdStr), 32);
 	sprintf(CmdStr, "%s",cmdName);
 
@@ -3280,8 +3276,30 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 		else
 		{
 			sprintf(CmdStr, "%s /%s",CmdStr,str);
+            if (strstr((char *)str, _strlwr("ssid")) != NULL || strstr((char *)str, _strlwr("passphrase")) != NULL)
+            {
+                paramFlag = 1;
+            }
+
 			str = strtok_r(NULL, ",", &pcmdStr);
-			sprintf(CmdStr, "%s \"%s\"",CmdStr,str);
+
+            if (paramFlag)
+            {
+                while(str[i] != '\0' && isalnum(str[i]))
+                {
+                    i++;
+                }
+                if (i < (int)strlen(str))
+                    sprintf(CmdStr, "%s \"%s\"",CmdStr,str);
+                else
+                    sprintf(CmdStr, "%s %s",CmdStr,str);
+
+                paramFlag = 0;
+            }
+            else
+            {
+			    sprintf(CmdStr, "%s %s",CmdStr,str);
+            }
 		}
 	}
 
@@ -3290,6 +3308,7 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	Sleep(3000);
 
 	CmdReturnFlag =0;
+
 	// check the return process
 	wfaCliFd=fopen(clfile,"r");
 	if(wfaCliFd!= NULL)
