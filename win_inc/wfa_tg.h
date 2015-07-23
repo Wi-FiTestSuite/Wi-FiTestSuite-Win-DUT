@@ -107,7 +107,7 @@
 
 /* wmm defs */
 #define TOS_VO7     0xE0         // 111 0  0000 (7)  AC_VO tos/dscp values
-#define TOS_VO      0xD0         // 110 0  0000 (6)  AC_VO tos/dscp values
+#define TOS_VO      0xC0         // 110 0  0000 (6)  AC_VO tos/dscp values
 #define TOS_VO6     0xC0         // 110 0  0000 (6)  AC_VO tos/dscp values benz
 #define TOS_VO2     0x88         // 110 0  0000 (6)  AC_VO tos/dscp values
 
