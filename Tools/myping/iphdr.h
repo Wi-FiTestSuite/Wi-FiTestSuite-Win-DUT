@@ -1,24 +1,17 @@
-// From Network Programming for Microsoft Windows, Second Edition by 
-// Anthony Jones and James Ohlund.  
-// Copyright 2002.   Reproduced by permission of Microsoft Press.  
-// All rights reserved.
-//
-//
-// Sample: Protocol header definitions used by ping (raw sockets)
-// 
-// Files:
-//      iphdr.h     - this file
-//      
-// Description:
-//      This file contains various protocol header definitions used by
-//      the raw socket ping sample.
-//
-// Compile:
-//      See ping.cpp
-//
-// Usage:
-//      See ping.cpp
-//
+/*****************************************************************************
+Copyright (c) Microsoft
+All rights reserved.
+Licensed under the Microsoft Limited Public License (the “License”); you may not
+use this file except in compliance with the License.
+You may obtain a copy of the License at http://msdn.microsoft.com/en-us/cc300389.
+
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED WARRANTIES OR CONDITIONS
+OF TITLE, FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABLITY OR NON-INFRINGEMENT.
+
+See the Microsoft Limited Public License (Ms-LPL) for specific language governing
+permissions and limitations under the License.
+*****************************************************************************/
 
 // Align on a 1-byte boundary
 #include <pshpack1.h>
