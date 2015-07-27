@@ -19,6 +19,6 @@
 #ifndef _WFA_VER_H
 #define _WFA_VER_H
 
-#define WFA_SYSTEM_VER      "WIN7_WIN8_DUT-v08.02.00"        
+#define WFA_SYSTEM_VER      "WIN7_WIN8_DUT-v9.0.0"        
 
 #endif
