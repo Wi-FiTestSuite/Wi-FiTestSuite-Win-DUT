@@ -31,11 +31,11 @@ cd %DEST_PATH%
 setx PATH "%PATH%;%CD%" -m
 
 sc stop WfaControlAgent 
-sleep 5
+timeout 3
 sc delete WfaControlAgent 
 
 sc stop WfaDutAgent
-sleep 5
+timeout 3
 sc delete WfaDutAgent
 
 
@@ -74,7 +74,7 @@ Goto :EOF
 
 WfaDutAgent -i
 sc start WfaDutAgent 
-sleep 5
+timeout 3
 
 WfaControlAgent -i
 sc start WfaControlAgent 
