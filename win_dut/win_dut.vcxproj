@@ -70,7 +70,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>_X86_;_CRT_SECURE_NO_WARNINGS;WFA_WMM_PS;WFA_WMM_WPA2;TGN_TB_STATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_X86_;_CRT_SECURE_NO_WARNINGS;WFA_WMM_WPA2;TGN_TB_STATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\win_dut\win_dut;..\win_inc;..\external\pthreadlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
