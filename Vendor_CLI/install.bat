@@ -1,9 +1,10 @@
 @echo off
 echo "Install CLIs for DUT device"
+echo "Please input the Device/Company Name of DUT (Note: input 'WMM_STAUT' for WMMPS):"
+set /p DeviceName=Device:
+IF /i "%DeviceName%"=="WMM_STAUT" (goto WMM_STAUT)
 echo "Please input the Firmware version number of DUT:"
 set /p FirmwareVersion=Version:
-echo "Please input the Device/Company Name of DUT:"
-set /p DeviceName=Device:
 set /p ask=Do you have the implementation of Vender's CLIs? (y/n)
 IF %ask%==y ( 
 echo "Please input the local path of your CLIs (end with \)"
@@ -32,6 +33,20 @@ echo "CLIs has been installed!"
 echo "Install failed: The Path is invalid!"
 )
 )
+
+:WMM_STAUT
+mkdir C:\WFA\CLIs\WMM_STAUT
+echo WMM_STAUT > c:\install.out
+xcopy /S /R /Y WMM_STAUT\*.* C:\WFA\CLIs\WMM_STAUT\
+
+echo WFA_CLI_STA_DEVICE="C:\WFA\CLIs\WMM_STAUT" >> C:\WFA\WfaEndpoint\wts_settings.txt
+echo DEVICE=WMM_STAUT >> C:\WFA\WfaEndpoint\\wts_settings.txt
+echo VERSION=%WMM_STAUT_CLI_VER% >> C:\WFA\WfaEndpoint\wts_settings.txt
+echo #end >> C:\WFA\WfaEndpoint\\wts_settings.txt
+echo WMM_STAUT
+
+echo Install WMM_STAUT OK, press any key to exit.
+
 pause
 
 goto :EOF
