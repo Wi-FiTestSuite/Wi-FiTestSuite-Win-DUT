@@ -1075,9 +1075,11 @@ DWORD WINAPI wfa_wmm_thread(void *thr_param)
 	tgProfile_t *myProfile;
 	BYTE respBuf[WFA_BUFF_4K];
 	int resendcnt = 0;
+    DWORD thr_id;
 	int timer_dur;
 	int iOptVal;
 	int iOptLen = sizeof(int);
+    
 
 	while(1)
 	{
@@ -1085,7 +1087,7 @@ DWORD WINAPI wfa_wmm_thread(void *thr_param)
 		fflush(stdout);
 		while(!my_wmm->thr_flag)
 		{
-			WaitForSingleObject( my_wmm->thr_flag_mutex, INFINITE );
+			WaitForSingleObject(my_wmm->thr_flag_mutex, INFINITE);            
 			Sleep(20);
 		}
 
@@ -1164,6 +1166,7 @@ DWORD WINAPI wfa_wmm_thread(void *thr_param)
 			*/
 			DPRINT_INFOL(WFA_OUT, "\r\n Thread %d Setting timer for %d ms\n",myId,1000*myProfile->duration);
 			timer_dur = 1000*(myProfile->duration + 1);  /* add one missing second   */          
+            CreateThread(NULL, 0, wfa_wmm_sleep_thread, (PVOID)&timer_dur, 0, &thr_id);
 
 			/* ----------detect some fixed bit rate cases on Sending ----------------  */
 			if ( (myProfile->rate != 0 ) /* WFA_SEND_FIX_BITRATE_MAX_FRAME_RATE)*/ && 
