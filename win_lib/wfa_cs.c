@@ -3220,7 +3220,7 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	char retstr[32], clfile[128];
 	int CmdReturnFlag;
 	int ret = 0;
-	int ckcnt = 1; //fix: moved to here
+	int ckcnt = 5; //fix: moved to here
     int i = 0;
     int paramFlag = 0;
 	
@@ -3349,14 +3349,14 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	ret = system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "\nRUN-> %s system call retVale=%i\n", wfaDutAgentData.gCmdStr, ret);
 
-	Sleep(3000);
+	Sleep(2000);
 
 	memset(&retstr[0],'\0',32);
 	while(retstr[0] =='\0' && ckcnt > 0)
 	{
 		wfaGetEnvVal("WFA_CLI_STATUS",&retstr[0],sizeof(retstr));
 		ckcnt--;
-		Sleep(1000);
+		Sleep(2000);
 	}
 
 	DPRINT_INFOL(WFA_OUT, "\nCLI CmdStr %s retrived WFA_CLI_STATUS=%s\n", CmdStr, retstr);
