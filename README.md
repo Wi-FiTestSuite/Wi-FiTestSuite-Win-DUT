@@ -16,7 +16,7 @@ Please refer to LICENSE.txt.
 /Docs/Windows DUT Build and Installation Guidelines.pdf
 /Docs/Windows DUT Porting Guidelines.pdf
 
-##Issues and Contribution Guidelines
-Please submit issues/ideas to the Google Group.
+## Issues and Contribution Guidelines
+Please submit issues/ideas to [Wi-Fi Test Suite Google Group](https://groups.google.com/d/forum/wi-fitestsuite).
 Both Wi-Fi Alliance members and non-members can contribute to the Wi-Fi Test Suite open source project. Please review the contribution agreement prior to submitting a pull request.
-Please read more on contributions in CONTRIBUTING.md.
+Please read more on contributions in [CONTRIBUTING.md](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUT/blob/master/CONTRIBUTING.md).
