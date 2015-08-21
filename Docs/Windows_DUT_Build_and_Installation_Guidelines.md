@@ -1,7 +1,6 @@
 #Windows DUT Build and Installation Guidelines
 July 23, 2015
 Version 1.0 Beta
-11n/WMM/WPA2, VHT, WMM-PS, P2P, PMF, TDLS, VE, WMM-AC
 
 
 ##1.	Introduction

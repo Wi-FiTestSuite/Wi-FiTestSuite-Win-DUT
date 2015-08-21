@@ -2,7 +2,6 @@
 #Windows DUT Porting Guidelines
 July 17,2015
 Version 1.0 Beta
-11n/WMM/WPA2, VHT, WMM-PS, P2P, PMF, TDLS, VE, WMM-AC
 
 ##1.	Scope
 This document provides guidance for implementing DUT code on Windows platform so that their devices can be tested and certified for Wi-Fi certification programs. It is also reckon as a baseline for open source community to extend functionality and improve quality.
