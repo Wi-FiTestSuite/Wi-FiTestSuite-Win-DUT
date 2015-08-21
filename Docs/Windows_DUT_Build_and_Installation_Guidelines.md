@@ -43,9 +43,9 @@ The relevant headers, libraries and dlls are:
 
 In the current code structure, the above header and library files are included in the\external\pthreadlib directory. As shown below, the visual studio project files are pre-configured to include them, taking win_dut for an example.
 
-![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUTDocs/DUT_build_1.png)
-![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUTDocs/DUT_build_2.png)
-![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUTDocs/DUT_build_3.png)
+![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUT/blob/master/Docs/pics/DUT_build_1.png)
+![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUT/blob/master/Docs/pics/DUT_build_2.png)
+![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUT/blob/master/Docs/pics/DUT_build_3.png)
 
 
 ##4.	Installation of Windows control and DUT agent
