@@ -8,7 +8,7 @@ Version 1.0 Beta
 This document provides guidance for implementing DUT code on Windows platform so that their devices can be tested and certified for Wi-Fi certification programs. It is also reckon as a baseline for open source community to extend functionality and improve quality.
 The DUT code consists of two agents (control agent and DUT agent) with several modules, i.e., control module, configuration module, and traffic module. Currently it supports Ethernet connection between the device and test console. Other interfaces can be incorporated as part of future enhancement.
 ##2.	Overview of DUT code architecture
-![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUTDocs/DUT_architechture.png)
+![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUT/blob/master/Docs/pics/DUT_architechture.png)
 The Wi-Fi Alliance provides the sample Windows DUT source code which includes:
 1. Control module in control agent: The code receives the CAPI command from test console and converts it to the struct which is then wrapped into TLV format and sent to DUT agent. The control agent can reside on either a control PC which is detached from underlying device or actually the device. The communication interface between control agent and DUT agent in the sample code is TCP socket over Ethernet. Other interfaces can be developed to support a variety of connections such as USB, USB over serial, serial or wireless and so on.
 2. Config module in DUT agent: The agent receives data packet in TLV format from network over Ethernet interface. It will then invoke the function corresponding to the decoded command based on its tag value. The function will in turn call either the low level API or CLI batch to execute the command.
