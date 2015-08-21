@@ -9,10 +9,10 @@ This document provides guidance for implementing DUT code on Windows platform so
 The DUT code consists of two agents (control agent and DUT agent) with several modules, i.e., control module, configuration module, and traffic module. Currently it supports Ethernet connection between the device and test console. Other interfaces can be incorporated as part of future enhancement.
 ##2.	Overview of DUT code architecture
 ![alt tag](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUT/blob/master/Docs/pics/DUT_architechture.png)
-The Wi-Fi Alliance provides the sample Windows DUT source code which includes:
-1. Control module in control agent: The code receives the CAPI command from test console and converts it to the struct which is then wrapped into TLV format and sent to DUT agent. The control agent can reside on either a control PC which is detached from underlying device or actually the device. The communication interface between control agent and DUT agent in the sample code is TCP socket over Ethernet. Other interfaces can be developed to support a variety of connections such as USB, USB over serial, serial or wireless and so on.
-2. Config module in DUT agent: The agent receives data packet in TLV format from network over Ethernet interface. It will then invoke the function corresponding to the decoded command based on its tag value. The function will in turn call either the low level API or CLI batch to execute the command.
-3. Traffic module in DUT agent: The agent will generate the UDP based traffic and start sending/receiving it to/from the peers. The data packets generated are at a either fixed rate or maximized rate which the underlying OS can support.
+The sample Windows DUT source code includes:
+  1. Control module in control agent: The code receives the CAPI command from test console and converts it to the struct which is then wrapped into TLV format and sent to DUT agent. The control agent can reside on either a control PC which is detached from underlying device or actually the device. The communication interface between control agent and DUT agent in the sample code is TCP socket over Ethernet. Other interfaces can be developed to support a variety of connections such as USB, USB over serial, serial or wireless and so on.
+  2. Config module in DUT agent: The agent receives data packet in TLV format from network over Ethernet interface. It will then invoke the function corresponding to the decoded command based on its tag value. The function will in turn call either the low level API or CLI batch to execute the command.
+  3. Traffic module in DUT agent: The agent will generate the UDP based traffic and start sending/receiving it to/from the peers. The data packets generated are at a either fixed rate or maximized rate which the underlying OS can support.
 
 
 ##3.Working with the source code
@@ -115,11 +115,11 @@ The OS dependency includes the use of socket and thread, and other system APIs w
 These APIs are mainly located in the wfa_cs.c file and invoked by the main code to configure the device and execute the Wi-Fi specific actions.
 These APIs can in turn invoke vendor’s low level APIs which will manage and control the device via the device driver. Each function in the wfa_cs.c file corresponds to a CAPI command. Some implementations are achieved through Windows netsh utility.
 Another way of implementing CAPI command is through CLI. Here are the steps to follow for the implementation:
-1. Add the CAPI command to be implemented to the wfa_cli.txt file according to the following format:
+  1. Add the CAPI command to be implemented to the wfa_cli.txt file according to the following format:
 	- CAPI_command-TRUE,
 	- CAPI_command-FALSE,
 Note: TRUE means the command needs to return the result to test console. FALSE means return null.
-2. Create a batch file with exactly the same file name as CAPI command, provide the implementation in it and write the result back to windows DUT using setx. Each CLI must return an error code status through the environment variable - WFA_CLI_STATUS.
+  2. Create a batch file with exactly the same file name as CAPI command, provide the implementation in it and write the result back to windows DUT using setx. Each CLI must return an error code status through the environment variable - WFA_CLI_STATUS.
  WFA_CLI_STATUS Code Definition:
  - WFA_CLI_COMPLETE(0)
  - WFA_CLI_ERROR(1)
@@ -132,11 +132,11 @@ The setx or other approaches can be used to write the result back to Windows env
 
 ##5.	API implementation for new command
 When implementing a new CAPI command, a simpler approach is to follow the steps above and do it in the CLI way. If using API is preferred, the following is the suggested procedure:
-1.	Define the new command’s TLV tag in wfa_tlv.h.
-2.	Declare the response function in wfa_ca_resp.h and add the function implementation in wfa_ca_resp.c.
-3.	Add a command parsing handling function to the function array of nameStr in wfa_typestr.c and implement it in wfa_cmdproc.c.
-4.	Define new struct for the command in wfa_cmds.h if it is different from dutCommand_t and a response struct in wfa_rsp.h if it is not a generic one as dutCmdResponse_t.
-5.	Declare the function in gWfaCmdFuncTbl of wfa_cmdtbl.c and Implement it in wfa_cs.c.
+  1.	Define the new command’s TLV tag in wfa_tlv.h.
+  2.	Declare the response function in wfa_ca_resp.h and add the function implementation in wfa_ca_resp.c.
+  3.	Add a command parsing handling function to the function array of nameStr in wfa_typestr.c and implement it in wfa_cmdproc.c.
+  4.	Define new struct for the command in wfa_cmds.h if it is different from dutCommand_t and a response struct in wfa_rsp.h if it is not a generic one as dutCmdResponse_t.
+  5.	Declare the function in gWfaCmdFuncTbl of wfa_cmdtbl.c and Implement it in wfa_cs.c.
 
 ##6.	Program specific build options
 The source code defines a few program specific compiling switches for building the executable for either individual program or all the programs. The relationship among the switches is illustrated as below:
