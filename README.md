@@ -4,7 +4,7 @@
 Wi-Fi Test Suite is a software platform originally developed by Wi-Fi Alliance, the global non-profit industry association that brings you Wi-Fi&reg;, to support certification program development and device certification. Non-proprietary components are provided under the ISC License and can be accessed at this open source project on GitHub. Wi-Fi Alliance members can access the full software package, including proprietary components, on the [Wi-Fi Alliance member site](https://groups.wi-fi.org).
 
 ##Control Agents
-Control agents are a proxy in which a CAPI control command is converted for the device into the device’s native control interface. APs, DUTs, sniffers, and STAs may require control agents. The Windows control agent can be downloaded through the [open source repository](https://github.com/Wi-FiAlliance/Wi-FiTestSuite-Win-DUT).
+Control agents are a proxy in which a Control API (CAPI) control command is converted for the device into the device’s native control interface. Access points (APs), devices under test (DUTs), sniffers, and stations (STAs) may require control agents. The Windows control agent can be downloaded through the [open source repository](https://github.com/Wi-FiAlliance/Wi-FiTestSuite-Win-DUT).
 
 ##Installation from sources
 Refer to our Install Guide for instructions on setting up Windows DUT
