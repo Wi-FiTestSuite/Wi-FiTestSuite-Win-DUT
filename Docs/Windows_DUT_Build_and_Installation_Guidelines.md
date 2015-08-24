@@ -69,7 +69,7 @@ c. pthreadVSE2.dll
 ##5.	Execution of Windows control and DUT agent
 Make sure to put your CLI batch files which implement the CAPI commands in the C:\WFA\CLI\<Device Vendor Name> folder. <Device Vendor Name> is the same name you selected during the installation for your device.
 If you already built the WfaControlAgent and WfaDutAgent binaries and run the install.bat file, the Windows control agent and DUT agent should be running as windows services now. Otherwise, if you like to run two agents from command line, you can manually start them as follows:
-- win_ca.exe <control interface> <control port> 127.0.0.1 8000
+- win_ca.exe [control interface] [control port] 127.0.0.1 8000
 - win_dut.exe 127.0.0.1 8000
 
 where <control interface> can be a dummy one like eth0 and <control port> is the port number used to communicate with test console such as 9000.
