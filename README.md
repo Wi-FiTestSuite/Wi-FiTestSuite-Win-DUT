@@ -13,8 +13,9 @@ Refer to our Install Guide for instructions on setting up Windows DUT
 Please refer to LICENSE.txt.
 
 ##Documentation
-/Docs/Windows DUT Build and Installation Guidelines.pdf
-/Docs/Windows DUT Porting Guidelines.pdf
+[Windows DUT Build and Installation Guidelines](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUT/blob/master/Docs/Windows_DUT_Build_and_Installation_Guidelines.md)
+
+[Windows DUT Porting Guidelines](https://github.com/Wi-FiTestSuite/Wi-FiTestSuite-Win-DUT/blob/master/Docs/Windows_DUT_Porting_Guidelines.md)
 
 ## Issues and Contribution Guidelines
 Please submit issues/ideas to [Wi-Fi Test Suite Google Group](https://groups.google.com/d/forum/wi-fitestsuite).
