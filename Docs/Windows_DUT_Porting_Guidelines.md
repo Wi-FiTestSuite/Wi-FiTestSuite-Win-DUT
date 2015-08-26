@@ -142,7 +142,7 @@ When implementing a new CAPI command, it will be simpler to follow the steps abo
   5.	Declare the function in gWfaCmdFuncTbl of wfa_cmdtbl.c and Implement it in wfa_cs.c.
 
 ##6.	Program specific build options
-The source code defines a few Wi-Fi Alliance certification program specific compiling switches for building the executable for either an individual program or all the programs. The relationship among the switches is illustrated as below:
+The source code defines a few Wi-Fi Alliance certification program specific compiling switches for building the executable for either an individual program or all the programs. When using these switches, only certification program specific CAPI commands will be included in the build. The relationship among the switches is illustrated as below:
 
 |Build options|	Programs to build|
 |:-----------------|:--------------|
