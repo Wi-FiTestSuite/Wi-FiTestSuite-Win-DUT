@@ -191,8 +191,8 @@ int CheckIcmpReplyHeader(char *buf, int bytes)
             return 3;
         }
 
-		printf("\n Reply type - Unknown");
-		return icmphdr->icmp_type;
+        printf("\n Reply type - Unknown");
+        return icmphdr->icmp_type;
     }
 
     return 0;
