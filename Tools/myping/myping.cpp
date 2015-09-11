@@ -195,7 +195,7 @@ int CheckIcmpReplyHeader(char *buf, int bytes)
         return icmphdr->icmp_type;
     }
 
-    return 0;
+    return -1;
 }
 
 //
