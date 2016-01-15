@@ -190,9 +190,12 @@ int CheckIcmpReplyHeader(char *buf, int bytes)
             printf("\n Reply type - Host not reachable");				
             return 3;
         }
+
+        printf("\n Reply type - Unknown");
+        return icmphdr->icmp_type;
     }
 
-    return 0;
+    return -1;
 }
 
 //
@@ -944,7 +947,7 @@ int __cdecl main(int argc, char **argv)
                     Sleep(gWaitTime-time); // sleep for the remaining wait time
             }
             
-            if ( 3 != CheckIcmpReplyHeader(recvbuf, bytes))
+            if (0 == CheckIcmpReplyHeader(recvbuf, bytes)) // if reply type is 0 - Echo Reply then count it
             {
                 recd++;
             }
