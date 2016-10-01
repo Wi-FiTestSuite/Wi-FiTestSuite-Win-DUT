@@ -61,23 +61,45 @@ int wfaACClassToQos(int tgClass, int *pQos, int *pTosVal, int *pThreadPriority)
 	{
 		DPRINT_ERR(WFA_ERR, "wfaACClassToQos pass in err param or NULL pt tgClass=%d pQos=0x%x pTosVal=0x%x pThreadPriority=0x%x\n",tgClass, pQos,  pTosVal, pThreadPriority);
 		return WFA_FAILURE;
-	} 
+	}
+
+
 	switch(tgClass)
 	{
 	case TG_WMM_AC_BK:
 		/*Change this value to the ported device*/
-		Qos = 1;
-		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS Background tag: 0x%x\n", TOS_BK);
+		Qos = 0x08;
+		//Qos = 1;
+		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS BK/UP1 tag: 0x%x\n", TOS_BK);
 		tosVal = TOS_BK;
 		threadPriority = THREAD_PRIORITY_BELOW_NORMAL;
 		break;
 
+	case TG_WMM_AC_BK2:
+	case TG_WMM_AC_UP2:
+        /*Change this value to the ported device*/
+        Qos = 0x10;
+		//Qos = 2;
+        DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS BK/UP2 tag: 0x%x\n", TOS_LE);
+        tosVal = TOS_LE;
+        threadPriority = THREAD_PRIORITY_BELOW_NORMAL;
+        break;
+
 	case TG_WMM_AC_VI:
-		Qos = 4;
-		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS Video tag: 0x%x\n",TOS_VI);
+	case TG_WMM_AC_UP5:
+		Qos = 0x28;
+		//Qos = 5;
+		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS VI/UP5 tag: 0x%x\n",TOS_VI);
 		tosVal = TOS_VI;
 		threadPriority = THREAD_PRIORITY_ABOVE_NORMAL;       
 		break;
+
+	/*case TG_WMM_AC_UP5:
+        Qos = 0x28;
+        DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS UP5 tag: 0x%x\n",TOS_VI);
+        tosVal = TOS_VI;
+        threadPriority = THREAD_PRIORITY_ABOVE_NORMAL;       
+        break;*/
 
 	case TG_WMM_AC_UAPSD:
 		tosVal = 0x88;
@@ -86,23 +108,76 @@ int wfaACClassToQos(int tgClass, int *pQos, int *pTosVal, int *pThreadPriority)
 
 	case TG_WMM_AC_VO:
 		/*Change this value to the ported device*/
-		Qos = 6;
-		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS Voice Tag: 0x%x\n",TOS_VO7 );
-		tosVal=TOS_VO7;
+		Qos = 0x30;
+		//Qos = 6;
+		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS VO/UP6 Tag: 0x%x\n",TOS_VO);
+		tosVal = TOS_VO;
 		threadPriority = THREAD_PRIORITY_HIGHEST;       
 		break;
 
+	/*case TG_WMM_AC_UP7:
+        Qos = 0x38;
+        DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS UP7 Tag: 0x%x\n", TOS_VO7);
+        tosVal = TOS_VO7;
+        threadPriority = THREAD_PRIORITY_HIGHEST;       
+        break;*/
+
 	case TG_WMM_AC_BE:
-		Qos = 0;
-		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS BE tag: 0x%x\n", TOS_BE);
+		Qos = 0x00;
+		//Qos = 0;
+		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS BE/UP0 tag: 0x%x\n", TOS_BE);
 		tosVal = TOS_BE;
 		threadPriority = THREAD_PRIORITY_NORMAL;
 		break;
 
+	/*case TG_WMM_AC_UP3:
+        Qos = 0x18;
+        DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS UP3 tag: 0x%x\n", TOS_BE);
+        tosVal = TOS_EE;
+        threadPriority = THREAD_PRIORITY_NORMAL;
+        break;*/
+
+	/*case TG_WMM_AC_BK2:
+		Qos = 0x10;
+		//Qos = 2;
+		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS BE2 tag: 0x%x\n", TOS_LE);
+        tosVal = TOS_LE;
+        threadPriority = THREAD_PRIORITY_BELOW_NORMAL;       
+        break;*/
+
+    case TG_WMM_AC_VI2:
+        /* Change this value to the ported device */
+		Qos = 0x20;
+		//Qos = 4;
+		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS VI/UP4 tag: 0x%x\n", TOS_VI4);
+        tosVal = TOS_VI4;
+        threadPriority = THREAD_PRIORITY_NORMAL;
+        break;
+
+    case TG_WMM_AC_VO2:
+	case TG_WMM_AC_UP7:
+		Qos = 0x38;
+		//Qos = 7;
+		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS VO/UP7 tag: 0x%x\n", TOS_VO7);
+        /*Change this value to the ported device*/
+        tosVal = TOS_VO7;
+        threadPriority = THREAD_PRIORITY_ABOVE_NORMAL;       
+        break;
+
+    case TG_WMM_AC_BE2:
+	case TG_WMM_AC_UP3:
+		Qos = 0x18;
+		//Qos = 3;
+		DPRINT_INFOL(WFA_OUT, "wfaACClassToQos: Setting QoS BE/UP3 tag: 0x%x\n", TOS_EE);
+        tosVal = TOS_EE;
+        threadPriority = THREAD_PRIORITY_NORMAL;
+        break;
+
 	default:
 		DPRINT_WARNING(WFA_WNG, "wfaACClassToQos: ERR Unknown AC class value 0x%x\n", tgClass);
 		tosVal = TOS_BE;
-		Qos = 0;
+		Qos = 0x00;
+		//Qos = 0;
 		threadPriority = threadPriority = THREAD_PRIORITY_BELOW_NORMAL;
 	}
 	*pQos = Qos;
@@ -121,9 +196,16 @@ int wfaOpenTrafficControlFlow(SOCKET sockfd, int tgClass, tgProfile_t *pTGProfil
 	int ret = WFA_SUCCESS;
 	int Qos=0, tosVal=0, threadPriority=0;
 	char *stport=NULL;
+	ULONG    err;
 
 	SOCKADDR_STORAGE Address = { 0 };
 	struct addrinfo  *dest = NULL;
+
+	TCI_CLIENT_FUNC_LIST ClientHandlerList;
+    HANDLE    hClient = TC_INVALID_HANDLE;
+    IFC_LIST   IfcList = {0};
+	PTC_GEN_FLOW  pTcFlow = NULL;
+	PTC_GEN_FILTER  pTcFilter = NULL;
 
 	if ( pTC == NULL)
 	{
@@ -135,8 +217,10 @@ int wfaOpenTrafficControlFlow(SOCKET sockfd, int tgClass, tgProfile_t *pTGProfil
 		DPRINT_ERR(WFA_ERR, "wfaOpenTrafficControlFlow, ERR pTGProfile is NULL\n");
 		return WFA_FAILURE;
 	}
-	ret = wfaACClassToQos(tgClass, &(pTC->Qos), &(pTC->tosVal), &threadPriority);
-	if(!CreateFlow(&(pTC->pTcFlow), pTC->Qos, NOT_SPECIFIED, QOS_NOT_SPECIFIED))
+
+	////ret = wfaACClassToQos(tgClass, &(pTC->Qos), &(pTC->tosVal), &threadPriority);
+	if(!CreateFlow(&pTcFlow, pTC->Qos, NOT_SPECIFIED, QOS_NOT_SPECIFIED))
+	//if(!CreateFlow(&(pTC->pTcFlow), pTC->Qos, NOT_SPECIFIED, QOS_NOT_SPECIFIED))
 	{
 		ret = WFA_FAILURE;
 		DPRINT_ERR(WFA_ERR, "wfaOpenTrafficControlFlow:TC flow creation - FAILED\n");
@@ -149,7 +233,6 @@ int wfaOpenTrafficControlFlow(SOCKET sockfd, int tgClass, tgProfile_t *pTGProfil
 
 	// Resolve the destination address
 	dest = ResolveAddress( pTGProfile->dipaddr, stport, AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-
 	if(dest == NULL)
 	{
 		DPRINT_INFOL(WFA_OUT, "ERR wfaOpenTrafficControlFlow:ResolveAddress FAILED");
@@ -162,21 +245,25 @@ int wfaOpenTrafficControlFlow(SOCKET sockfd, int tgClass, tgProfile_t *pTGProfil
 	DPRINT_INFOL(WFA_OUT, "wfaOpenTrafficControlFlow creating a filter start for QoS %i\n", (pTC->Qos));
 
 	// Create the TC Filter with the parameters
-	if (!CreateFilter(&(pTC->pTcFilter), Address, pTGProfile->dport, IPPROTO_UDP))
+	if (!CreateFilter(&pTcFilter, Address, pTGProfile->dport, IPPROTO_UDP))
+	//if (!CreateFilter(&(pTC->pTcFilter), Address, pTGProfile->dport, IPPROTO_UDP))
 	{
 		ret = WFA_FAILURE;
 		DPRINT_ERR(WFA_ERR, "wfaOpenTrafficControlFlow:CreateFilter - FAILED\n");
 		goto CLEANUP;
 	}
 	// Register TC client
-	memset(&(pTC->ClientHandlerList), 0, sizeof(pTC->ClientHandlerList));
-	pTC->ClientHandlerList.ClNotifyHandler = (TCI_NOTIFY_HANDLER)ClNotifyHandler;
-	ret = TcRegisterClient(CURRENT_TCI_VERSION, 0, &(pTC->ClientHandlerList), &(pTC->hClient));
-	if(ret != NO_ERROR)
+	//memset(&(pTC->ClientHandlerList), 0, sizeof(pTC->ClientHandlerList));
+	//pTC->ClientHandlerList.ClNotifyHandler = (TCI_NOTIFY_HANDLER)ClNotifyHandler;
+	//ret = TcRegisterClient(CURRENT_TCI_VERSION, 0, &(pTC->ClientHandlerList), &(pTC->hClient));
+	memset(&ClientHandlerList, 0, sizeof(ClientHandlerList));
+	ClientHandlerList.ClNotifyHandler = (TCI_NOTIFY_HANDLER)ClNotifyHandler;
+	err = TcRegisterClient(CURRENT_TCI_VERSION, 0, &ClientHandlerList, &hClient);
+	if(err != NO_ERROR)
 	{
 		DPRINT_ERR(WFA_OUT, "wfaOpenTrafficControlFlow TcRegisterClient Failed %d\n", ret);
 
-		if(ret == ERROR_OPEN_FAILED)
+		if(err == ERROR_OPEN_FAILED)
 		{
 			DPRINT_ERR(WFA_OUT, "Please make sure you are running with admin credentials\n");
 		}
@@ -184,44 +271,56 @@ int wfaOpenTrafficControlFlow(SOCKET sockfd, int tgClass, tgProfile_t *pTGProfil
 		goto CLEANUP;
 	}
 	// Enumerate All TC enabled Interfaces and store the information in IfcList
-	if(!MakeIfcList(pTC->hClient, &(pTC->IfcList)))
+	//if(!MakeIfcList(pTC->hClient, &(pTC->IfcList)))
+	if(!MakeIfcList(hClient, &IfcList))
 	{
 		DPRINT_ERR(WFA_ERR, "wfaOpenTrafficControlFlow::MakeIfcList falied, make sure QoS Packet Scheduler is active for this interface\n");
 		ret = WFA_FAILURE;
 		goto CLEANUP;
 	}
 	// Add pTcFlow on all the Ifcs in the IfcList
-	if(!AddTcFlows(pTC->IfcList, pTC->pTcFlow))
+	if(!AddTcFlows(IfcList, pTcFlow))
+	//if(!AddTcFlows(pTC->IfcList, pTC->pTcFlow))
 	{
 		DPRINT_ERR(WFA_ERR, "wfaOpenTrafficControlFlow::AddTcFlows FAILED\n");
 		ret = WFA_FAILURE;
 		goto CLEANUP;
 	}
 	// Add pTcFilter to all the corresponding TcFlows on all the Ifcs in the IfcList
-	if (!AddTcFilters(pTC->IfcList, pTC->pTcFilter))
+	if (!AddTcFilters(IfcList, pTcFilter))
+	//if (!AddTcFilters(pTC->IfcList, pTC->pTcFilter))
 	{
 		DPRINT_INFOL(WFA_OUT, "ERR wfaOpenTrafficControlFlow::AddTcFilters\n");
 		ret = WFA_FAILURE;
 		goto CLEANUP;
 	}
-	if(setsockopt ( sockfd, IPPROTO_IP, IP_TOS, (char *)&(pTC->tosVal), sizeof(pTC->tosVal)) < 0)
-	{
-		DPRINT_INFOL(WFA_OUT,"ERR wfaTGSetPrio, setsockopt failed to set tosVal=0x%x\n", pTC->tosVal);
-		goto CLEANUP;
-	}
-	else
-	{
-		DPRINT_INFOL(WFA_OUT,"wfaTGSetPrio call wfaOpenTrafficControlFlow +++, TOS set OK tosVal=0x%x sockFd=%d\n", pTC->tosVal, sockfd);
-	} 
+
+//#ifndef QOS_SUPPORT
+//	if(setsockopt (sockfd, IPPROTO_IP, IP_TOS, (char *)&(pTC->tosVal), sizeof(pTC->tosVal)) < 0)
+//	{
+//		DPRINT_INFOL(WFA_OUT,"ERR wfaTGSetPrio, setsockopt failed to set tosVal=0x%x\n", pTC->tosVal);
+//		goto CLEANUP;
+//	}
+//	else
+//	{
+//		DPRINT_INFOL(WFA_OUT,"wfaTGSetPrio call wfaOpenTrafficControlFlow +++, TOS set OK tosVal=0x%x sockFd=%d\n", pTC->tosVal, sockfd);
+//	} 
+//#endif
 
 	pTC->trafficClass = tgClass;
 CLEANUP:
-	if ( ret != WFA_SUCCESS )
+	//if (ret != WFA_SUCCESS)
 	{
-		wfaCloseTrafficControlFlow(pTC);
+		pTC->hClient = hClient;
+		//pTC->ClientHandlerList = ClientHandlerList;
+		pTC->IfcList = IfcList;
+		pTC->pTcFilter = pTcFilter;
+		pTC->pTcFlow = pTcFlow;
+		//wfaCloseTrafficControlFlow(pTC);
 	}
 	return ret;
 }/* wfaOpenTrafficControlFlow  */
+
 
 int wfaCloseTrafficControlFlow(tgTC_t *pTC)
 {
@@ -236,14 +335,17 @@ int wfaCloseTrafficControlFlow(tgTC_t *pTC)
 	DeleteFlow(&(pTC->pTcFlow));
 
 	TcDeregisterClient(pTC->hClient);// must call to unreg
-	memset(&(pTC->ClientHandlerList), 0, sizeof(pTC->ClientHandlerList));
+	//memset(&(pTC->ClientHandlerList), 0, sizeof(pTC->ClientHandlerList));
 
-	ZeroMemory(&(pTC->IfcList), sizeof(IFC_LIST));
+	//ZeroMemory(&(pTC->IfcList), sizeof(IFC_LIST));
 	pTC->pTcFilter = NULL;
 	pTC->pTcFlow = NULL;
 	pTC->Qos     = -1;
 	pTC->tosVal  = -1;
 	pTC->trafficClass = 0;
+	//pTC->hClient = TC_INVALID_HANDLE;
+	//pTC->IfcList = {0};
+
 	DPRINT_INFOL(WFA_OUT, " wfaCloseTrafficControlFlow::---\n");
 	return WFA_SUCCESS; 
 }/* wfaCloseTrafficControlFlow  */

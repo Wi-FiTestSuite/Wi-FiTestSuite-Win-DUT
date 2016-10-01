@@ -43,6 +43,7 @@ typeNameStr_t keywordStr[] =
 	{ KW_USERPRIORITY, "userpriority",            NULL},
 	{ KW_MAXCNT,       "maxcnt",                  NULL},
 	{ KW_HTI,           "hti",                    NULL},
+    { KW_TRANSPROTOTYPE,    "transProtoType",     NULL},
 }; 
 
 /* profile type string table */
@@ -74,7 +75,6 @@ int cmdProcNotDefinedYet(char *pcmdStr, char *buf, int *len)
 
 	return (WFA_SUCCESS);
 }
-
 
 
 /*
@@ -109,7 +109,7 @@ int xcCmdProcAgentConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
 	int userPrio = 0;
 
 	wfaTLV *hdr = (wfaTLV *)aBuf;
-	tgProfile_t tgpf = {0, 0, "", -1, "", -1, 0, 0, 0, TG_WMM_AC_BE, 0};
+	tgProfile_t tgpf = {0, 0, "", -1, "", -1, 0, 0, 0, TG_WMM_AC_BE, 0, 0, -1, 0};
 	tgProfile_t *pf = &tgpf;
 
 	DPRINT_INFO(WFA_OUT, "start xcCmdProcAgentConfig ...\n");
@@ -118,6 +118,7 @@ int xcCmdProcAgentConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
 	if(aBuf == NULL)
 		return WFA_FAILURE;
 
+    pcmdStr = rtrim(pcmdStr);
 	while((str = strtok_r(NULL, ",", (char **)&pcmdStr)) != NULL) 
 	{
 		for(i = 0; i<sizeof(keywordStr)/sizeof(typeNameStr_t); i++)
@@ -314,8 +315,7 @@ int xcCmdProcAgentConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
 					}
 					else if(strcasecmp(str, "BestEffort2") == 0)
 					{
-						pf->trafficClass = TG_WMM_AC_BE2; 
-
+						pf->trafficClass = TG_WMM_AC_BE2;
 					}
 					else
 					{
@@ -400,8 +400,7 @@ int xcCmdProcAgentConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
 					kwcnt++;
 					str = NULL;
 					break;
-
-					//------------------------------------------------
+					
 				case KW_HTI:
 					str = strtok_r(NULL, ",", (char **)&pcmdStr);            
 
@@ -422,7 +421,20 @@ int xcCmdProcAgentConfig(char *pcmdStr, BYTE *aBuf, int *aLen)
 					kwcnt++;
 					str = NULL;
 					break;
-					//-----------------------------------------------
+				
+                case KW_TRANSPROTOTYPE:
+                  str = strtok_r(NULL, ",", (char **)&pcmdStr);            
+
+                  if(strcasecmp(str, "1") == 0)
+                  {
+                      pf->transProtoType = 1;  
+                  }
+                  else
+                  {
+                      pf->transProtoType = 0;  
+                  }
+                  DPRINT_INFO(WFA_OUT, "transProtoType %s\r\n", str);
+                  break;
 
 				default:
 					;
@@ -648,6 +660,31 @@ int xcCmdProcAgentRecvStop(char *pcmdStr, BYTE *aBuf, int *aLen)
 	*aLen = 4 + 4*id_cnt;
 
 	return WFA_SUCCESS;
+}
+
+/*
+* xcCmdProcAgentVersion(): Process and send the Control command 
+*                       "traffic_agent_version"
+* input - pcmdStr  parameter string pointer
+* return - WFA_SUCCESS or WFA_FAILURE;
+*/
+int xcCmdProcAgentVersion(char *pcmdStr, BYTE *aBuf, int *aLen)
+{
+    wfaTLV *hdr = (wfaTLV *)aBuf;
+
+    DPRINT_INFO(WFA_OUT, "Entering xcCmdProcAgentRecvStop ...\n"); 
+    
+    if(aBuf == NULL)
+        return WFA_FAILURE;
+
+    memset(aBuf, 0, *aLen);
+
+    hdr->tag =  WFA_TRAFFIC_AGENT_VERSION_TLV;   
+    hdr->len = 0;  /* multiple 4s if more streams */
+
+    *aLen = 4;
+
+    return WFA_SUCCESS;
 }
 
 /*

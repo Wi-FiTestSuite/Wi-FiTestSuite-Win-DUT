@@ -21,9 +21,9 @@
  * @brief File containing the miscellaneous utility rountines
 */
 
-#include "wfa_debug.h"
+//#include "wfa_debug.h"
 #include "wfa_main.h"
-#include "wfa_types.h"
+//#include "wfa_types.h"
 
 #include <sys/timeb.h> /* For prototype of "_ftime()" */
 
@@ -219,7 +219,7 @@ int bigEndianBuff2Int(char *buff)
 */
 void printProfile(tgProfile_t *pf)
 {
-	DPRINT_INFO(WFA_OUT, "profile type %i direction %i Dest ipAddr %s Dest port %i So ipAddr %s So port %i rate %i duration %i pksize %i\n", pf->profile, pf->direction, pf->dipaddr, pf->dport, pf->sipaddr, pf->sport, pf->rate, pf->duration, pf->pksize);
+	DPRINT_INFO(WFA_OUT, "profile type %i direction %i Dest ipAddr %s Dest port %i So ipAddr %s So port %i rate %i duration %i pksize %i transProtoType %i hti %i\r\n", pf->profile, pf->direction, pf->dipaddr, pf->dport, pf->sipaddr, pf->sport, pf->rate, pf->duration, pf->pksize, pf->transProtoType, pf->hti);
 }
 
 /** 
@@ -359,3 +359,25 @@ int strcasecmp(const char *s1, const char *s2)
 
 	return toupper((unsigned char)*s1) - toupper((unsigned char)*s2);
 }
+
+/** 
+  * Left trim of space 
+  * @param s The string to be left trimmed
+*/
+char *ltrim(char *s)
+{
+	while(isspace(*s)) s++;
+	return s;
+}
+
+/** 
+  * Right trim of space 
+  * @param s The string to be right trimmed
+*/
+char *rtrim(char *s)
+{
+	char* back = s + strlen(s);
+	while(isspace(*--back));
+	*(back+1) = '\0';
+	return s;
+}  

@@ -61,6 +61,7 @@
 #define KW_USERPRIORITY            17
 #define KW_MAXCNT                  18
 #define KW_HTI                     19
+#define KW_TRANSPROTOTYPE          20
 
 /* Profile Types */
 #define PROF_FILE_TX               1
@@ -162,6 +163,7 @@ typedef struct _tg_profile
 	int  startdelay;
 	int maxcnt;
 	int hti;                 /* High Throughput Injection */
+	int transProtoType;     /* 0 is udp and 1 is tcp */
 	tgTC_t      tgTC[5];
 } tgProfile_t;
 
@@ -174,6 +176,7 @@ typedef struct _tg_stats
 	int outOfSequenceFrames; 
 	int lostPkts;                 /* voice over wi-fi */
 	unsigned long jitter;         /* voice over wi-fi */
+    unsigned int txActFrames;
 } tgStats_t;
 
 typedef struct _e2e_stats
@@ -252,7 +255,7 @@ typedef struct _tg_thr_data
 
 extern int wfaTGConfig(int len, BYTE *buf, int *respLen, BYTE *respBuf);
 extern int wfaSendLongFile(int fromSockfd, int streamId, BYTE *respBuf, int *respLen);
-extern int wfaRecvFile(int mySockfi, int profId, char *buf);
+extern int wfaRecvFile(int mySockfi, int profId, char *buf, int bufLen);
 extern int wfaTGRecvStart(int len, BYTE *parms, int *respLen, BYTE *respBuf);
 extern int wfaTGRecvStop(int len, BYTE *parms, int *respLen, BYTE *respBuf);
 extern int wfaTGSendStart(int len, BYTE *parms, int *respLen, BYTE *respBuf);
@@ -262,6 +265,8 @@ extern int wfaFlushSockQueue(int profId);
 extern int wfaTGSendPing(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf);
 extern int wfaTGStopPing(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf);
 extern int agtCmdProcGetVersion(int len, BYTE *parms, int *respLen, BYTE *respBuf);
+extern int agtCmdProcGetTGVersion(int len, BYTE *parms, int *respLen, BYTE *respBuf);
+
 /*  open tc flow with specific AC class */
 extern int wfaOpenTrafficControlFlow(SOCKET sockfd, int tgClass, tgProfile_t *pTGProfile,  tgTC_t *pTC);
 extern int wfaCloseTrafficControlFlow(tgTC_t *pTC);

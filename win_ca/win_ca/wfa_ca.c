@@ -30,7 +30,7 @@ extern dutCommandRespFuncPtr wfaCmdRespProcFuncTbl[];
 extern typeNameStr_t nameStr[];
 
 /*
-* the output format can be redefined for file output.
+* The output format can be redefined for file output.
 */
 int main(int argc, char *argv[])
 {
@@ -61,6 +61,10 @@ int main(int argc, char *argv[])
 	int iOptVal = 0;
 	int iOptLen = sizeof (int);
 
+	WFA_OUT = stdout;
+	WFA_ERR = stderr;
+	WFA_WNG = stdout;
+
 	DPRINT_INFOL(WFA_OUT, "%c[%d;%d;%dm", 0x1B, 1,32,40);
 	if(argc < 3)
 	{
@@ -68,7 +72,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	myport = atoi(argv[2]); 
+	myport = atoi(argv[2]);
+
 	if(argc > 3)
 	{
 		if(argc < 5)
@@ -95,10 +100,11 @@ int main(int argc, char *argv[])
 			logfile = fopen(argv[5],"a");
 			if(logfile != NULL)
 			{
-				fd = _fileno(logfile);
+				WFA_OUT = WFA_ERR = WFA_WNG = logfile;
+				//fd = _fileno(logfile);
 				DPRINT_INFO(WFA_OUT,"redirecting the output to %s\n",argv[5]);
-				_dup2(fd,1);
-				_dup2(fd,2);
+				//_dup2(fd,1);
+				//_dup2(fd,2);
 			}
 			else
 			{

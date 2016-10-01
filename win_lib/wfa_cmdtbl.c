@@ -86,9 +86,10 @@ xcCommandFuncPtr gWfaCmdFuncTbl[WFA_STA_COMMANDS_END+(WFA_STA_NEW_COMMANDS_END -
 	wfaStaResetDefault,       /*    WFA_STA_RESET_DEFAULT_TLV          (43)*/
 	wfaStaDisconnect,         /*    WFA_STA_DISCONNECT_TLV             (44)*/
 	wfaStaReassociate,        /*    WFA_STA_REASSOCIATE_TLV            (45)*/
-	wfaStaSetPwrSave,         /*    WFA_STA_SET_PWRSAVE_TLV            (60)*/
-	wfaStaSetPowerSave,       /*    WFA_STA_SET_POWER_SAVE_TLV legacy  (61)*/
-	wfaStaCliCommand,         /*    WFA_STA_CLI_CMD_TLV                (46)*/
+	wfaStaSetPwrSave,         /*    WFA_STA_SET_PWRSAVE_TLV            (46)*/
+	wfaStaSetPowerSave,       /*    WFA_STA_SET_POWER_SAVE_TLV legacy  (47)*/
+	agtCmdProcGetTGVersion,	  /*      (48)*/
+	wfaStaCliCommand,         /*    WFA_STA_CLI_CMD_TLV                (49)*/
 
 #ifdef WFA_P2P
 	wfaStaGetP2pDevAddress,   /*                                       (47)*/
