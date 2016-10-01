@@ -26,6 +26,8 @@ extern int xcCmdProcAgentSend(char *, BYTE *, int *);
 extern int xcCmdProcAgentRecvStart(char *, BYTE *, int *);
 extern int xcCmdProcAgentRecvStop(char *, BYTE *, int *);
 extern int xcCmdProcAgentReset(char *, BYTE *, int *);
+extern int xcCmdProcAgentVersion(char *, BYTE *, int *);
+
 extern int xcCmdProcStaGetIpConfig(char *, BYTE *, int *);
 extern int xcCmdProcStaSetIpConfig(char *, BYTE *, int *);
 extern int xcCmdProcStaGetMacAddress(char *pcmdStr, BYTE *, int *);
@@ -136,6 +138,7 @@ typeNameStr_t nameStr[] =
 	{WFA_STA_REASSOCIATE_TLV, "sta_reassoc", xcCmdProcStaReAssociate},
 	{WFA_STA_SET_PWRSAVE_TLV, "sta_set_pwrsave", xcCmdProcStaSetPwrSave},
 	{WFA_STA_SET_POWER_SAVE_TLV, "sta_set_power_save", xcCmdProcStaSetPowerSave}, /* legacy power save */
+    {WFA_TRAFFIC_AGENT_VERSION_TLV, "traffic_agent_version", xcCmdProcAgentVersion},
 	{WFA_STA_CLI_CMD_TLV, "wfa_cli_cmd", xcCmdProcStaCliCommand},
 
 #ifdef WFA_P2P
@@ -153,6 +156,5 @@ typeNameStr_t nameStr[] =
 	{WFA_STA_WPS_ENTER_PIN_TLV, "sta_wps_enter_pin", xcCmdProcStaWpsEnterPin},
 	{WFA_STA_GET_PSK_TLV, "sta_get_psk", xcCmdProcStaGetPsk},
 #endif   
-
 	{-1, "", NULL},
 };

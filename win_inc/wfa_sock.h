@@ -24,6 +24,12 @@
 #define MAX_ETH_PAYLOAD_LEN   1450
 #define MAX_LEGACY_PAYLOAD_LEN    1000
 
+#define MAX_SOCKOPT_RECVBUF_LEN  128*1024
+#define MAX_SOCKOPT_SNDBUF_LEN  128*1024
+
+#define SOCK_TYPE_UDP   0
+#define SOCK_TYPE_TCP   1
+
 struct sockfds
 {
 	int *agtfd;      /* dut agent main socket fd */
@@ -33,17 +39,28 @@ struct sockfds
 	int *psfd;       /* wmm-ps socket id         */
 };
 
+extern int wfaCreateTCPServSockImpl(char *serverIpAddr, unsigned short port);
 extern int wfaCreateTCPServSock(unsigned short sport);
 extern int wfaCreateUDPSock(char *sipaddr, unsigned short sport);
+extern int wfaCreateSock(int sockType, char *ipaddr, unsigned short port);
+
 extern int wfaAcceptTCPConn(int servSock);
+
+extern int wfaConnectToPeer(int sockType, int mysock, char *daddr, int dport);
 extern int wfaConnectUDPPeer(int sock, char *dipaddr, int dport);
+
 extern void wfaSetSockFiDesc(fd_set *sockset, int *, struct sockfds *);
+
 extern int wfaCtrlSend(SOCKET sock, unsigned char *buf, int bufLen);
 extern int wfaCtrlRecv(int sock, unsigned char *buf, int bufLen);
 extern int wfaTrafficSendTo(int sock, char *buf, int bufLen, struct sockaddr *to);
-extern int wfaTrafficRecv(int sock, char *buf, struct sockaddr *from);
+extern int wfaTrafficRecv(int sock, char *buf, struct sockaddr *from, int bufLen);
+
 extern int wfaSetSockMcastRecvOpt(int, char*);
 extern int wfaSetSockMcastSendOpt(int);
 extern int wfaSetProcPriority(int);
+
+int wfaCreateTCPCliSock();
+int wfaConnectTCPPeer(int mysock, char *daddr, int dport);
 
 #endif /* _WFA_SOCK_H */
