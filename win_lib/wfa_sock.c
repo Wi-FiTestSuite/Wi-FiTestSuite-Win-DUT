@@ -32,16 +32,16 @@
 */
 int wfaCreateTCPServSock(unsigned short port)
 {
-	int sock;                        /* socket to create */
+	int sock;                    /* socket to create */
 	struct sockaddr_in servAddr; /* Local address */
 	const int on = 1;
 	WSADATA wsaData;
 	BOOL bOpt = TRUE;
-	int wsaret=WSAStartup(0x101,&wsaData);
+	int wsaret = WSAStartup(0x101,&wsaData);
 
-	if(wsaret!=0)
+	if(wsaret != 0)
 	{
-		DPRINT_ERR(WFA_ERR, "createTCPServSock socket() failed");
+		DPRINT_ERR(WFA_ERR, "socket init failed");
 		return WFA_FAILURE;
 	}
 	/* Create socket for incoming connections */
@@ -73,8 +73,109 @@ int wfaCreateTCPServSock(unsigned short port)
 }
 
 /** 
+ * Create a TCP socket
+ * @param serverIpAddr TCP Local ip address to bind.
+ * @param port TCP port to receive and send packet.
+ * @return socket id.
+*/
+int wfaCreateTCPServSockImpl(char *serverIpAddr, unsigned short port)
+{
+    int sock;                    /* socket to create */
+    struct sockaddr_in servAddr; /* Local address */
+    const int on = 1;
+    WSADATA wsaData;
+    BOOL bOpt = TRUE;
+
+    int wsaret = WSAStartup(0x101,&wsaData);
+    if(wsaret != 0)
+    {
+        DPRINT_ERR(WFA_ERR, "socket init failed");
+        return WFA_FAILURE;
+    }
+
+    /* Create socket for incoming connections */
+    if ((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+    {
+        DPRINT_ERR(WFA_ERR, "createTCPServSock socket() failed");
+        return WFA_FAILURE;
+    }
+
+    setsockopt(sock,IPPROTO_TCP,TCP_NODELAY,(char*)&bOpt,sizeof(BOOL));
+      
+    /* Construct local address structure */
+    memset(&servAddr, 0, sizeof(servAddr));
+
+    servAddr.sin_family = AF_INET;        /* Internet address family */
+    //servAddr.sin_addr.s_addr = inet_addr(serverIpAddr); /* Any incoming interface */
+    servAddr.sin_addr.s_addr = htonl(INADDR_ANY); /* Any incoming interface */
+    servAddr.sin_port = htons(port);              /* Local port */
+
+    /* Bind to the local address */
+    if (bind(sock, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
+    {
+        DPRINT_ERR(WFA_ERR, "bind() failed");
+        return WFA_FAILURE;
+    }
+
+    /* Mark the socket so it will listen for incoming connections */
+    if (listen(sock, MAXPENDING) < 0)
+    {
+        DPRINT_ERR(WFA_ERR, "listen() failed");
+        return WFA_FAILURE;
+    }
+
+    return sock;
+}
+
+/** 
+ * Create a TCP client or UDP socket
+ * @param sockType TCP or UDP.
+ * @param ipaddr local UDP ip address to bind.
+ * @param port UDP port to receive and send packet.
+ * @return socket id.
+*/
+int wfaCreateSock(int sockType, char *ipaddr, unsigned short port)
+{
+    // tcp
+    if (sockType == SOCK_TYPE_TCP)
+    {
+        return wfaCreateTCPCliSock();
+    }
+    // udp or default
+    else
+    {
+        return wfaCreateUDPSock(ipaddr, port);
+    }
+}
+
+/**
+ * Create a TCP client socket
+ * return socket id
+ */
+int wfaCreateTCPCliSock()
+{
+    WSADATA wsaData;
+    int s, c=0;
+    
+    if (WSAStartup(MAKEWORD(2, 0), &wsaData) != 0)
+	{
+        DPRINT_ERR(WFA_ERR, "socket init failed");
+        return WFA_FAILURE;
+    }
+
+    s = socket (PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (s < 0)
+	{
+		DPRINT_ERR(WFA_ERR, "createTCPServSock socket() failed");
+        return WFA_FAILURE;
+	}
+
+    return s;
+}
+
+/** 
  * Create a UDP socket
- * @param ipaddr TCP Local ip address for test traffic.
+ * @param ipaddr Local UDP ip address to bind.
  * @param port UDP port to receive and send packet.
  * @return socket id.
 */
@@ -98,6 +199,7 @@ int wfaCreateUDPSock(char *ipaddr, unsigned short port)
 		DPRINT_ERR(WFA_ERR, "createUDPSock socket() failed with error %d for port %d",errsv,port);
 		return WFA_FAILURE;
 	}
+
 	servAddr.sin_family      = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servAddr.sin_port        = htons(port);
@@ -139,6 +241,54 @@ int wfaSetSockMcastRecvOpt(int sockfd, char *mcastgroup)
 }
 
 /** 
+ * Called to connect to remote host through subroutine.
+ * @param sockType TCP or UDP.
+ * @param mysock Local socket handle.
+ * @param dport Destination port.
+ * @return Socket number if succeed, otherwise 1.
+*/
+int wfaConnectToPeer(int sockType, int mysock, char *daddr, int dport)
+{
+     // tcp
+    if (sockType == SOCK_TYPE_TCP)
+    {
+        return wfaConnectTCPPeer(mysock, daddr, dport);
+    }
+    // udp or default
+    else
+    {
+        return wfaConnectUDPPeer(mysock, daddr, dport);
+    }
+}
+
+/** 
+ * Called to connect to remote host through TCP.
+ * @param mysock Local socket handle.
+ * @param daddr Destination IP address.
+ * @param dport Destination port.
+ * @return Connection status.
+*/
+int wfaConnectTCPPeer(int mysock, char *daddr, int dport)
+{
+    struct sockaddr_in peerAddr;
+    int c;
+
+    memset((char*)&peerAddr, 0, sizeof(peerAddr));
+	peerAddr.sin_family = PF_INET;
+	peerAddr.sin_addr.s_addr = inet_addr (daddr);
+    peerAddr.sin_port = htons (dport);	
+
+    c = connect(mysock, (struct sockaddr*)&peerAddr, sizeof(peerAddr));
+	if (c < 0)
+	{
+        DPRINT_ERR(WFA_ERR, "wfaConnectTCPPeer connect() failed: %d\r\n", WSAGetLastError());
+        return WFA_FAILURE;
+    }
+
+    return c;
+}
+
+/** 
  * Called to set up a virtual connection to the receiver
  * @param mysock Local socket number.
  * @param daddr Destination IP address.
@@ -172,11 +322,10 @@ int wfaAcceptTCPConn(int servSock)
 	clntLen = sizeof(clntAddr);
 
 	/* Wait for a client to connect */
-	if ((clntSock = accept(servSock, (struct sockaddr *) &clntAddr, 
-		(int *)&clntLen)) < 0)
+	if ((clntSock = accept(servSock, (struct sockaddr *) &clntAddr, (int *)&clntLen)) < 0)
 	{
-		DPRINT_ERR(WFA_ERR, "accept() failed");
-		exit(1);
+		DPRINT_ERR(WFA_ERR, "accept() failed\n");
+		return WFA_FAILURE;
 	}
 
 	/* clntSock is connected to a client! */
@@ -201,7 +350,6 @@ void wfaSetSockFiDesc(fd_set *fdset, int *maxfdn1, struct sockfds *fds)
 		FD_SET(*fds->cafd, fdset);
 		*maxfdn1 = max(*maxfdn1-1, *fds->cafd) + 1;
 	}
-
 
 #ifdef WFA_WMM_PS
 	/* if the power save socket port valid */
@@ -286,11 +434,10 @@ int wfaTrafficSendTo(int sock, char *buf, int bufLen, struct sockaddr *to)
  * @param from The address of sender of the data.
  * @return The number of bytes received.
 */
-int wfaTrafficRecv(int sock, char *buf, struct sockaddr *from)
+int wfaTrafficRecv(int sock, char *buf, struct sockaddr *from, int bufLen)
 {
 	int bytesRecvd =0;
 	int addrLen=sizeof(struct sockaddr);
-
 
 	int NonBlock=0; /* 0 is blocking */
 	if (ioctlsocket(sock, FIONBIO, (u_long *)&NonBlock) == SOCKET_ERROR)
@@ -304,7 +451,7 @@ int wfaTrafficRecv(int sock, char *buf, struct sockaddr *from)
 		DPRINT_ERR(WFA_ERR, "Uninitialized buffer\n");
 		return WFA_ERROR;
 	}
-	bytesRecvd = recv(sock, buf, MAX_RCV_BUF_LEN, 0); 
+	bytesRecvd = recv(sock, buf, bufLen, 0); 
 
 	return bytesRecvd;
 }

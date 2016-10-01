@@ -41,6 +41,7 @@ typedef struct ca_sta_get_stats_resp
 {
 	int status;
 	int txFrames;
+    int txActFrames;
 	int rxFrames;
 	int txMulticast;
 	int rxMulticast;
@@ -116,7 +117,6 @@ typedef struct dut_cmd_response
 		caP2pStaGetPskResp_t pskInfo;
 
 #endif
-
 		int connected;
 	} cmdru;
 }dutCmdResponse_t;

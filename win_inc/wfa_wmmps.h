@@ -163,7 +163,7 @@ typedef struct wfa_wmmps
 	pthread_t thr;
 	pthread_cond_t thr_flag_cond;
 	pthread_mutex_t thr_flag_mutex;
-}wfaWmmPS_t;
+} wfaWmmPS_t;
 
 /*  WMMPS used sending dirction routines implemented in wfa_thr.c start with Cap W */
 int WfaStaSndHello(char,int,int *state);

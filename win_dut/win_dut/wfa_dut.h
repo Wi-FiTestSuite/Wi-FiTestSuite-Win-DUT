@@ -27,6 +27,7 @@ struct wfa_dutagt_data
 	int gagtSockfd;
 	int gxcSockfd;    
 	int  vend;
+    volatile int isExit;
 	char gCmdStr[WFA_CMD_STR_SZ];
 	char intfname[64];
 	char WFA_CLI_CMD_DIR[64];
@@ -58,8 +59,11 @@ struct wfa_tg_wmm_data
 	int slotCnt;
 	int mainSendThread;
 	int usedThread;
-	int runLoop;
+	volatile int runLoop;
 	int gtimeOut;
+    int svrSock[WFA_MAX_WMM_STREAMS];
+	int throttle_rate;
+	int sleep_time;
 };
 
 struct wfa_tg_voice_data 
@@ -102,9 +106,10 @@ struct wfa_tg_wmmps_data
 	int msgsize;
 };
 
-
 struct wfa_dutagt_data wfaDutAgentData;
 struct wfa_dutagt_capi_data wfaDutAgentCAPIData;
+
+typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 
 #if defined(WFA_WMM_WPA2) || defined(WFA_WMM_PS) || defined(WFA_WMM_AC)
 struct wfa_tg_wmm_data wfaTGWMMData;

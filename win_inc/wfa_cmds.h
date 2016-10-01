@@ -383,6 +383,7 @@ enum {
 	eDEF_WMMPS = 8,
 	eDEF_HS20 = 9,
 	eDEF_WMMAC = 10,
+    eDEF_60G = 11
 };
 
 typedef struct ca_sta_reset_default
@@ -487,7 +488,7 @@ typedef struct wmm_tspec
 	unsigned int PHYrate;//The minimum PHY Rate
 	float sba;//The Surplus Bandwidth Allownce
 	unsigned short medium_time;//The medium time
-}wmmtspec_t;
+} wmmtspec_t;
 
 typedef struct wmmac_addts
 {

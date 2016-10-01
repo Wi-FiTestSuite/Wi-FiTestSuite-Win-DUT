@@ -85,11 +85,17 @@ DWORD WINAPI wfa_recv_thread(void *thr_param)
 			{
 				while (n!=-1)
 				{
-					n = wfaRecvFile(wfaTGWMMData.btSockfd, wfaTGWMMData.gtgRecv, (char  *)recvBuf);
+					n = wfaRecvFile(wfaTGWMMData.btSockfd, wfaTGWMMData.gtgRecv, (char *)recvBuf, sizeof(recvBuf));
 					if(wfaTGWMMData.gtgTransac != 0 && n != -1) /* for transaction DT3, need to send a response back */
 					{
 						char respBuf[WFA_BUFF_4K]; 
 						int respLen = 0;
+
+                        int iResult;
+                        u_long iMode = 1;
+                        iResult = ioctlsocket(wfaTGWMMData.btSockfd, FIONBIO, &iMode);
+                        if (iResult != NO_ERROR)
+                            DPRINT_ERR(WFA_ERR, "ioctlsocket failed with error: %ld\n", iResult);
 
 						if(wfaSendShortFile(wfaTGWMMData.btSockfd, wfaTGWMMData.gtgTransac, (BYTE *) recvBuf, n, (BYTE *) respBuf, &respLen) == WFA_SUCCESS)
 						{
@@ -144,11 +150,18 @@ struct timeval *wfaSetTimer(int secs, int usecs, struct timeval *tv)
 */
 void init_prog_global()
 {
+    int i = 0;
 	wfa_defined_debug = WFA_DEBUG_ERR | WFA_DEBUG_WARNING | WFA_DEBUG_INFO;
 	wfaDutAgentCAPIData.geSupplicant = 1;    
 	wfaDutAgentData.gagtSockfd = -1;
 	wfaDutAgentData.gxcSockfd = -1;
+    wfaDutAgentData.isExit = 1;
 	strcpy(wfaDutAgentData.WFA_CLI_CMD_DIR, "C:\\WFA\\CLIs\\Intel");
+
+    for (i = 0; i < WFA_MAX_WMM_STREAMS; i++)
+    {
+        wfaTGWMMData.svrSock[i] = -1;
+    }
 
 #ifdef WFA_WMM_WPA2
 	wfaTGWMMData.btSockfd = -1;
@@ -165,11 +178,159 @@ void init_prog_global()
 }
 
 /** 
+ * Housekeeping system resources including sockets
+*/
+void wfaDutAgentCleanup()
+{
+    int i = 0;
+
+    if(wfaTGWMMData.btSockfd != -1)
+    {
+       closesocket(wfaTGWMMData.btSockfd);
+       wfaTGWMMData.btSockfd = -1;
+    }
+
+    if(wfaTGWMMData.txSockfd != -1)
+    {
+       closesocket(wfaTGWMMData.txSockfd);
+       wfaTGWMMData.txSockfd = -1;
+    }
+
+	for (i = 0; i < WFA_MAX_WMM_STREAMS; i++)
+	{
+		if (wfaTGWMMData.svrSock[i] != -1)
+		{
+			closesocket(wfaTGWMMData.svrSock[i]);
+			wfaTGWMMData.svrSock[i] = -1;
+		}
+	}
+
+    for(i = 0; i < WFA_MAX_TRAFFIC_STREAMS; i++)
+    {
+       if(wfaTGWMMData.tgSockfds[i] > 0)
+       {          
+          DPRINT_INFOL(WFA_OUT, "Closing a socket which should have been closed earlier\n");
+          closesocket(wfaTGWMMData.tgSockfds[i]);
+          wfaTGWMMData.tgSockfds[i] = -1;
+       }
+    }
+
+	if(wfaDutAgentData.gagtSockfd != -1)
+	{
+		closesocket(wfaDutAgentData.gagtSockfd);
+		wfaDutAgentData.gagtSockfd = -1;
+	}
+	
+	if(wfaDutAgentData.gxcSockfd != -1)
+	{
+		closesocket(wfaDutAgentData.gxcSockfd);
+		wfaDutAgentData.gxcSockfd = -1;
+	}
+
+    /* just reset the flags for the command */
+    wfaTGWMMData.gtgRecv = 0;
+    wfaTGWMMData.gtgSend = 0;
+    wfaTGWMMData.gtgTransac = 0;
+
+#ifdef WFA_WMM_PS_EXT
+    wfaTGWMMPSData.gtgWmmPS = 0;
+
+    if(wfaTGWMMPSData.psSockfd != -1)
+    {
+       closesocket(wfaTGWMMPSData.psSockfd);
+       wfaTGWMMPSData.psSockfd = -1;
+    }
+
+    memset(&wfaTGWMMPSData.wmmps_info, 0, sizeof(wfaWmmPS_t));
+    wfaSetDUTPwrMgmt(PS_OFF);
+#endif
+    
+}
+
+/** 
+ * Console event handler
+*/
+BOOL wfaDutAgtConsoleCtrlHandler(DWORD ConEvent)
+{    
+    switch (ConEvent)
+    {
+        case CTRL_C_EVENT:
+            DPRINT_INFOL(WFA_OUT, "Ctrl-C event\n");
+            goto CLEANUP;
+        case CTRL_CLOSE_EVENT:
+            DPRINT_INFOL(WFA_OUT, "Ctrl-Close event\n");
+            goto CLEANUP;
+        case CTRL_BREAK_EVENT:
+            DPRINT_INFOL(WFA_OUT, "Ctrl-Break event\n");
+            goto CLEANUP;
+        case CTRL_LOGOFF_EVENT:
+            DPRINT_INFOL(WFA_OUT, "Ctrl-LogOff event\n");
+            goto CLEANUP;
+        case CTRL_SHUTDOWN_EVENT:
+            DPRINT_INFOL(WFA_OUT, "Ctrl-ShutDown event\n");
+            goto CLEANUP;
+        default:
+            return FALSE;
+    }
+
+CLEANUP:    
+    wfaDutAgentCleanup();
+    wfaDutAgentData.isExit = 0;
+    Sleep(500);
+    ExitProcess(0);
+    return TRUE;
+}
+
+/** 
+ * Check WM_QUIT message to exit the application
+*/
+DWORD WINAPI win_msg_check()
+{
+    MSG Msg; 
+    
+    if (PeekMessage(&Msg, NULL, 0, 0, PM_REMOVE)) 
+    {   
+        if (Msg.message == WM_QUIT)
+        {
+            DPRINT_INFOL(WFA_OUT, "WM_QUIT\n");
+            wfaDutAgentCleanup();
+            wfaDutAgentData.isExit = 0;
+            ExitProcess(0);
+        }
+        else
+        {
+            DPRINT_INFOL(WFA_OUT, "Message:%s\n", Msg.message);
+        }
+    }
+
+    return (DWORD) 0;
+}
+
+BOOL IsWow64Bit()
+{
+	BOOL bIsWow64 = FALSE;
+
+	LPFN_ISWOW64PROCESS fnWow64Proc;
+
+	fnWow64Proc = (LPFN_ISWOW64PROCESS) GetProcAddress(GetModuleHandle(TEXT("kernel32")), "IsWow64Process");
+
+	if (NULL != fnWow64Proc)
+	{
+		if (!fnWow64Proc(GetCurrentProcess(), &bIsWow64))
+		{
+			DPRINT_INFOL(WFA_OUT, "Unable to determine WoW64\n");
+		}
+	}
+
+	return bIsWow64;
+}
+
+/** 
  * Main function of windows DUT agent
 */
 int main(int argc, char **argv)
 {  
-	int       nfds, maxfdn1 = -1, nbytes = 0, cmdLen = 0, isExit = 1;
+	int       nfds, maxfdn1 = -1, nbytes = 0, cmdLen = 0;
 	int       respLen;
 	int       ret = 0;
 	WORD      locPortNo = 0;   /* local control port number                  */
@@ -183,6 +344,11 @@ int main(int argc, char **argv)
 	SECURITY_ATTRIBUTES sa;
 	DWORD dwFlags;
 	BYTE *trafficBuf=NULL;
+    int iResult;
+    u_long iMode = 1;
+	TCHAR sys_path[512];
+	int path_len;
+	FILE* dut_log_file;
 
 #ifdef WFA_WMM_WPA2    
 	struct timeval lstime;
@@ -194,6 +360,10 @@ int main(int argc, char **argv)
 	DWORD thr_id;
 #endif /* #ifdef WFA_WMM_WPA2 */
 
+	WFA_OUT = stdout;
+	WFA_ERR = stderr;
+	WFA_WNG = stdout;
+
 	if (argc < 3)              /* Test for correct number of arguments */
 	{
 		DPRINT_ERR(WFA_ERR, "Usage:  %s <command interface> <Local Control Port> \n", argv[0]);
@@ -202,22 +372,38 @@ int main(int argc, char **argv)
 
 	if(argc > 3)
 	{
-		sa.nLength              =   sizeof  (SECURITY_ATTRIBUTES);
+		sa.nLength              =   sizeof(SECURITY_ATTRIBUTES);
 		sa.lpSecurityDescriptor =   NULL;
 		sa.bInheritHandle       =   TRUE;
 		dwFlags =       FILE_ATTRIBUTE_NORMAL;
-		hStdOut =   CreateFile  ((LPCWSTR) argv[3], 
+		/*hStdOut =   CreateFile((LPCWSTR) argv[3], 
 			GENERIC_WRITE,
 			0,                          
 			NULL,                          
 			CREATE_ALWAYS,
 			dwFlags,
 			NULL);
+		if(hStdOut != INVALID_HANDLE_VALUE)
+		{
+			int fd = _open_osfhandle((intptr_t)hStdOut, _O_APPEND);
+			if(fd != -1)
+			{
+				dut_log_file = _fdopen(fd, "a+"); 
+			}
+		}*/
+		
+		dut_log_file = fopen(argv[3], "a");
+		
+		WFA_OUT = WFA_ERR = WFA_WNG = dut_log_file;
+		//WFA_ERR = dut_log_file;
+		//WFA_WNG = dut_log_file;
+		//SetStdHandle(STD_OUTPUT_HANDLE,hStdOut);
+		//SetStdHandle(STD_ERROR_HANDLE,hStdOut);
+		//freopen(argv[3],"a",stdout);
+		DPRINT_INFOL(WFA_OUT, "Redirected output to %s\n",argv[3]); 
 
-		SetStdHandle(STD_OUTPUT_HANDLE,hStdOut);
-		SetStdHandle(STD_ERROR_HANDLE,hStdOut);
-		freopen(argv[3],"a",stdout);
-		DPRINT_INFOL(WFA_OUT, "Redirected output to %s\n",argv[3]);  
+		//wfaTGWMMData.throttle_rate = atoi(argv[4]);
+		//wfaTGWMMData.sleep_time = atoi(argv[5]);
 	}
 
 	strncpy(wfaDutAgentData.gnetIf, argv[1], 50);
@@ -235,6 +421,12 @@ int main(int argc, char **argv)
 #if defined(WFA_WMM_WPA2) || defined(WFA_WMM_PS) || defined(WFA_WMM_AC)
 	rand_gen_sid();
 #endif
+
+	if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)wfaDutAgtConsoleCtrlHandler, TRUE) == FALSE)
+    {
+        DPRINT_INFOL(WFA_OUT, "Failed to install handler\r\n");
+        return 1;
+    }    
 
 #ifdef WFA_WMM_WPA2
 	/* raise itself priority class first */
@@ -256,10 +448,17 @@ int main(int argc, char **argv)
 	/* initial some external pointers */
 	wfa_set_envs();
 
-	if (FALSE == Wow64EnableWow64FsRedirection(FALSE))
+#ifndef WOW64_REDIRECT
+	path_len = GetSystemWow64Directory(sys_path, 512);
+	
+	if (path_len > 0 && IsWow64Bit())
 	{
-		DPRINT_INFOL(WFA_OUT, "Disable WoW64 failed\n");
+		if (FALSE == Wow64EnableWow64FsRedirection(FALSE))
+		{
+			DPRINT_INFOL(WFA_OUT, "Disable WoW64 failed\n");
+		}
 	}
+#endif
 
 #ifdef WFA_WMM_WPA2
 	/* create a receive thread */
@@ -298,7 +497,7 @@ int main(int argc, char **argv)
 
 	maxfdn1 = wfaDutAgentData.gagtSockfd + 1;
 
-	while (isExit) 
+	while (wfaDutAgentData.isExit) 
 	{
 		/* set socket file descriptors. For baseline, there are only 
 		* three sockets required. They are an agent main socket,
@@ -333,6 +532,8 @@ int main(int argc, char **argv)
 
 		/* Put a sleep so that the thread gets the mutex then main thread gets it */
 		Sleep(1);
+
+        win_msg_check();
 
 		if ((nfds = select(maxfdn1, &sockSet, NULL, NULL, tovalp)) < 0) 
 		{
@@ -373,6 +574,10 @@ int main(int argc, char **argv)
 				int2BuffBigEndian((int)lstime.tv_sec, &((tgHeader_t *)trafficBuf)->hdr[12]);
 				int2BuffBigEndian((int)lstime.tv_usec, &((tgHeader_t *)trafficBuf)->hdr[16]);
 
+                iResult = ioctlsocket(wfaTGWMMData.btSockfd, FIONBIO, &iMode);
+                if (iResult != NO_ERROR)
+                   DPRINT_ERR(WFA_ERR, "ioctlsocket failed with error: %ld\n", iResult);
+               
 				if(wfaSendShortFile(wfaTGWMMData.btSockfd, wfaTGWMMData.gtgTransac, trafficBuf, 0, respBuf, &respLen) == WFA_SUCCESS)
 				{
 					if(wfaCtrlSend(wfaDutAgentData.gxcSockfd, respBuf, respLen) != respLen)
@@ -389,10 +594,10 @@ int main(int argc, char **argv)
 		{
 			/* Incoming connection request */
 			wfaDutAgentData.gxcSockfd = wfaAcceptTCPConn(wfaDutAgentData.gagtSockfd);
-			if(wfaDutAgentData.gxcSockfd == -1)
+			if(wfaDutAgentData.gxcSockfd == WFA_FAILURE)
 			{
 				DPRINT_ERR(WFA_ERR, "Failed to open control link socket\n");
-				WFA_EXIT(1);
+				goto END;
 			}
 		}
 		/* Control Link port event*/
@@ -408,8 +613,6 @@ int main(int argc, char **argv)
 			}
 			else
 			{
-				/*  Clean the tray for any in Active icons */
-				RefreshTaskbarNotificationArea();
 				DPRINT_INFOL(WFA_OUT, "\nThe command Received after socket: %s\n",xcCmdBuf+4);				
 				memset(parmsVal,'\0',MAX_PARMS_BUFF);
 				/* command received */
@@ -442,6 +645,7 @@ int main(int argc, char **argv)
 					DPRINT_INFOL(WFA_OUT, "Not supported command\n");
 				}
 				DPRINT_INFOL(WFA_OUT, "Completed control command\n");
+
 #ifdef WFA_WMM_WPA2
 				/* for traffic_agent_send command, the wfaSentStatsResp() in wfa_thr.c will send the final status to the ca */
 				if(xcCmdTag == WFA_TRAFFIC_AGENT_SEND_RESP_TLV)
@@ -493,6 +697,7 @@ int main(int argc, char **argv)
 #endif /* WFA_WMM_WPA2 */
 	} /* end of while (isExit) */
 
+END:
 	free(trafficBuf);
 	free(toutvalp);
 	free(respBuf);

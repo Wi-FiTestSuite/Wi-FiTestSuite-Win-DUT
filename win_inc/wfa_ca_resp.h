@@ -36,6 +36,8 @@ int wfaTrafficAgentRecvStopResp(BYTE *cmdBuf);
 int wfaTrafficAgentResetResp(BYTE *cmdBuf);
 int wfaTrafficAgentPingStartResp(BYTE *cmdBuf);
 int wfaTrafficAgentPingStopResp(BYTE *cmdBuf);
+int wfaTrafficAgentVersionResp(BYTE *cmdBuf);
+
 int wfaStaGetMacAddressResp(BYTE *cmdBuf);
 int wfaStaGetBSSIDResp(BYTE *cmdBuf);
 int wfaStaSetEncryptionResp(BYTE *cmdBuf);

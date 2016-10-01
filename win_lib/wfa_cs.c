@@ -26,7 +26,7 @@
 #ifdef WFA_WMM_AC_EXT
 extern int wfaTGSetPrio(int sockfd, int tgClass);
 #endif
-
+extern char e2eResults[];
 #define FW(x,y) FindWindowEx(x, NULL, y, L"")
 
 char *wtsPath = "C:\\WFA";
@@ -56,6 +56,23 @@ int agtCmdProcGetVersion(int len, BYTE *parms, int *respLen, BYTE *respBuf)
 
 	DPRINT_INFOL(WFA_OUT, "Completing ...\n");
 	return WFA_SUCCESS;
+}
+
+int agtCmdProcGetTGVersion(int len, BYTE *parms, int *respLen, BYTE *respBuf)
+{
+    dutCmdResponse_t *getverResp = &wfaDutAgentData.gGenericResp;
+
+    DPRINT_INFOL(WFA_OUT, "Entering agtCmdProcGetTGVersion ...\n");
+
+    getverResp->status = STATUS_COMPLETE;
+    strncpy(getverResp->cmdru.version, WFA_TG_VER, WFA_VERSION_LEN-1);
+
+    wfaEncodeTLV(WFA_TRAFFIC_AGENT_VERSION_RESP_TLV, sizeof(dutCmdResponse_t), (BYTE *)getverResp, respBuf);
+    *respLen = WFA_TLV_HDR_LEN + sizeof(dutCmdResponse_t);
+
+    DPRINT_INFOL(WFA_OUT, "Completing ...\n");
+
+    return WFA_SUCCESS;
 }
 
 /** Force the station wireless I/F to re/associate with the AP
@@ -537,15 +554,15 @@ int wfaStaVerifyIpConnection(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBu
 	verifyIpResp->status = STATUS_COMPLETE;
 	verifyIpResp->cmdru.connected = 0;
 
-	btSockfd = wfaCreateUDPSock("127.0.0.1", WFA_UDP_ECHO_PORT);
+	if ((wfaTGWMMData.btSockfd = wfaCreateSock(SOCK_TYPE_UDP, "127.0.0.1", WFA_UDP_ECHO_PORT)) == WFA_FAILURE)
+    {
+        zlog_info(zc, "Error creating socket ...\r\n");
+        verifyIpResp->status = STATUS_ERROR;
+        wfaEncodeTLV(WFA_STA_VERIFY_IP_CONNECTION_RESP_TLV, 4, (BYTE *)verifyIpResp, respBuf);   
+        *respLen = WFA_TLV_HDR_LEN + 4;
 
-	if(btSockfd == -1)
-	{
-		verifyIpResp->status = STATUS_ERROR;
-		wfaEncodeTLV(WFA_STA_VERIFY_IP_CONNECTION_RESP_TLV, 4, (BYTE *)verifyIpResp, respBuf);   
-		*respLen = WFA_TLV_HDR_LEN + 4;      
-		return WFA_FAILURE;      
-	}
+        return WFA_FAILURE;
+    }
 
 	toAddr.sin_family = AF_INET;
 	toAddr.sin_addr.s_addr = inet_addr(verip->cmdsu.verifyIp.dipaddr);
@@ -553,7 +570,7 @@ int wfaStaVerifyIpConnection(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBu
 
 	while(done)
 	{
-		wfaTrafficSendTo(btSockfd, (char *)anyBuf, 64, (struct sockaddr *)&toAddr);
+		wfaTrafficSendTo(wfaTGWMMData.btSockfd, (char *)anyBuf, 64, (struct sockaddr *)&toAddr);
 		cnt++;
 
 		fds[0].fd = btSockfd;
@@ -3045,6 +3062,8 @@ void _setProg(char *progname)
 		wfaDutAgentCAPIData.progSet = eDEF_VHT;
 	else if(strcmp(progname, "11n") ==0)
 		wfaDutAgentCAPIData.progSet = eDEF_11N;
+    else if(strcmp(progname, "60G") ==0) // fix: add it for 60GHz
+        wfaDutAgentCAPIData.progSet = eDEF_60G;
 	else
 		wfaDutAgentCAPIData.progSet = 0;
 }
@@ -3231,6 +3250,17 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 
 	caStaCliCmdResp_t infoResp;
 
+    int regValInd = 0;
+
+    HKEY   hKey = NULL;
+    LONG   lErrorCode;
+    HANDLE hEvent = NULL;
+    DWORD TimeoutVal = 30000;
+    DWORD dwWaitResult;
+
+    DWORD  dwFilter = REG_NOTIFY_CHANGE_LAST_SET; 
+    int size1 = 0;
+
 	DPRINT_INFOL(WFA_OUT, "\nEntry wfaStaCliCommand... \n");
 
 	DPRINT_INFOL(WFA_OUT, "\nThe command Received: %s\n",caCmdBuf);
@@ -3304,9 +3334,7 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	}
 
 	DPRINT_INFOL(WFA_OUT, "CMDSTR ===========  %s ==================\n", CmdStr);
-	// try
-	Sleep(3000);
-
+	
 	CmdReturnFlag =0;
 
 	// check the return process
@@ -3339,30 +3367,70 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 		}
 		fclose(wfaCliFd);
 	}
+    else
+    {
+        infoResp.status = STATUS_ERROR;
+        DPRINT_INFOL(WFA_OUT, "Cannot open the file %s\n", clfile);
+        goto END;
+    }
 
 	st = 1;
 
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
+
 	/* should excused with CmdReturnFlag setting, but in fact it is NOT, why, bug?  benz */
+    lErrorCode = RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Environment"), 0, KEY_NOTIFY, &hKey);
+    if (lErrorCode != ERROR_SUCCESS)
+    {
+        DPRINT_INFOL(WFA_OUT, "Error in RegOpenKeyEx (%d).\r\n", lErrorCode);
+        goto CLEANUP;
+    }
+
+    hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (hEvent == NULL)
+    {
+        DPRINT_INFOL(WFA_OUT, "Error in CreateEvent (%d).\r\n", GetLastError());        
+        goto CLEANUP;
+    }
+
+    lErrorCode = RegNotifyChangeKeyValue(hKey, FALSE, dwFilter, hEvent, TRUE);
+    if (lErrorCode != ERROR_SUCCESS)
+    {
+        DPRINT_INFOL(WFA_OUT, "Error in RegNotifyChangeKeyValue (%d).\r\n", lErrorCode);
+        goto CLEANUP;
+    }
+
+    DPRINT_INFOL(WFA_OUT, "Waiting for a change in the specified key...\r\n"); 
+
 	sprintf(wfaDutAgentData.gCmdStr, "cd %s & echo CLI: %s & %s", wfaDutAgentData.WFA_CLI_CMD_DIR, CmdStr, CmdStr);
 	ret = system(wfaDutAgentData.gCmdStr);
+    dwWaitResult = WaitForSingleObject(hEvent, TimeoutVal);
+    if (dwWaitResult == WAIT_OBJECT_0)
+    {
+        DPRINT_INFOL(WFA_OUT, "Change has occurred.\r\n");
+    }
+    else if (dwWaitResult == WAIT_TIMEOUT)
+    {
+        DPRINT_INFOL(WFA_OUT, "Wait registry key timeout.\r\n");        
+    }
+    else
+    {
+        DPRINT_INFOL(WFA_OUT, "Error in WaitForSingleObject (%d).\r\n", GetLastError());
+        infoResp.status = STATUS_ERROR;
+        goto CLEANUP;
+    }
+
 	DPRINT_INFOL(WFA_OUT, "\nRUN-> %s system call retVale=%i\n", wfaDutAgentData.gCmdStr, ret);
 
-	Sleep(2000);
-
-	memset(&retstr[0],'\0',32);
-	while(retstr[0] =='\0' && ckcnt > 0)
-	{
-		wfaGetEnvVal("WFA_CLI_STATUS",&retstr[0],sizeof(retstr));
-		ckcnt--;
-		Sleep(2000);
-	}
+	memset(&retstr[0],'\0',32);	
+	wfaGetEnvVal("WFA_CLI_STATUS",&retstr[0],sizeof(retstr));		
 
 	DPRINT_INFOL(WFA_OUT, "\nCLI CmdStr %s retrived WFA_CLI_STATUS=%s\n", CmdStr, retstr);
 	if(strlen(retstr) > 0)
 		st = atoi(retstr);
 
+    DPRINT_INFOL(WFA_OUT, "CLI status %d\n",st);
 	infoResp.resFlag=CmdReturnFlag;
 
 	switch(st)
@@ -3373,8 +3441,43 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 		{
 			memset(&retstr[0],'\0',32);
 			DPRINT_INFOL(WFA_OUT, "cli status beforoe %s**** len%d**** \n", retstr,strlen(retstr));
+            lErrorCode = RegNotifyChangeKeyValue(hKey, FALSE, dwFilter, hEvent, TRUE);
+            if (lErrorCode != ERROR_SUCCESS)
+            {
+                DPRINT_INFOL(WFA_OUT, "Error in RegNotifyChangeKeyValue (%d).\r\n", lErrorCode);
+                goto CLEANUP;
+            }
+            dwWaitResult = WaitForSingleObject(hEvent, TimeoutVal);
+            if (dwWaitResult == WAIT_OBJECT_0)
+            {
+                DPRINT_INFOL(WFA_OUT, "Change has occurred.\r\n");
+            }
+            else if (dwWaitResult == WAIT_TIMEOUT)
+            {
+                DPRINT_INFOL(WFA_OUT, "Wait registry key timeout.\r\n");
+            }
+            else
+            {
+                DPRINT_INFOL(WFA_OUT, "Error in WaitForSingleObject (%d).\r\n", GetLastError());
+                goto CLEANUP;
+            }
+            // Close the key.
+            if (hKey != NULL && RegCloseKey(hKey) != ERROR_SUCCESS)
+            {
+                DPRINT_INFOL(WFA_OUT, "Error in RegCloseKey (%d).\r\n", GetLastError());        
+            }
+
+            // Close the handle.
+            if (hEvent != NULL && !CloseHandle(hEvent))
+            {
+                DPRINT_INFOL(WFA_OUT, "Error in CloseHandle (%d).\r\n", GetLastError());        
+            }
+
 			wfaGetEnvVal("WFA_CLI_RETURN",&retstr[0],sizeof(retstr));
-			DPRINT_INFOL(WFA_OUT, "cli status %s**** len%d**** \n", retstr,strlen(retstr));
+            if (retstr != NULL)
+            {
+			    DPRINT_INFOL(WFA_OUT, "cli status %s**** len%d**** \n", retstr,strlen(retstr));
+            }
 			memset(&infoResp.result[0],'\0',WFA_CLI_CMD_RESP_LEN);
 			if(retstr != NULL)
 			{
@@ -3382,7 +3485,11 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 				DPRINT_INFOL(WFA_OUT, "Return CLI result to CA: %s****\n", &infoResp.result[0]);			
 			}
 			else
+            {
 				strcpy(&infoResp.result[0], "ENV_VAR_NOT_DEFINED");
+            }
+
+            goto END;
 		}
 		break;
 
@@ -3396,6 +3503,20 @@ int wfaStaCliCommand(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 		break;
 	}
 
+CLEANUP:
+    // Close the key.
+    if (hKey != NULL && RegCloseKey(hKey) != ERROR_SUCCESS)
+    {
+        DPRINT_INFOL(WFA_OUT, "Error in RegCloseKey (%d).\r\n", GetLastError());        
+    }
+
+    // Close the handle.
+    if (hEvent != NULL && !CloseHandle(hEvent))
+    {
+        DPRINT_INFOL(WFA_OUT, "Error in CloseHandle (%d).\r\n", GetLastError());        
+    }
+
+END:
 	wfaEncodeTLV(WFA_STA_CLI_CMD_RESP_TLV, sizeof(infoResp), (BYTE *)&infoResp, respBuf);   
 	*respLen = WFA_TLV_HDR_LEN + sizeof(infoResp);
 
@@ -3479,7 +3600,7 @@ int wfaStaGetP2pDevAddress(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_get_p2p_dev_address /interface %s", WFA_CLI_CMD_DIR, intf);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_get_p2p_dev_address /interface %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -3562,7 +3683,7 @@ int wfaStaSetP2p(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_set_p2p /interface %s %s", WFA_CLI_CMD_DIR, intf, cmd);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_set_p2p /interface %s %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf, cmd);
 	st = wfaExecuteCLI(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -3612,7 +3733,7 @@ int wfaStaP2pConnect(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_p2p_connect /interface %s /p2pdevid %s", WFA_CLI_CMD_DIR, intf,getStaP2pConnect->devId);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_p2p_connect /interface %s /p2pdevid %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaP2pConnect->devId);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -3674,7 +3795,7 @@ int wfaStaP2pJoin(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_p2p_join /interface %s /p2pdevid %s /ssid %s", WFA_CLI_CMD_DIR, intf,getStaP2pJoin->devId,getStaP2pJoin->ssid);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_p2p_join /interface %s /p2pdevid %s /ssid %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaP2pJoin->devId,getStaP2pJoin->ssid);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -3726,7 +3847,7 @@ int wfaStaP2pStartGrpFormation(int len, BYTE *caCmdBuf, int *respLen, BYTE *resp
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_p2p_start_group_formation /interface %s /p2pdevid %s /intent_val %d", WFA_CLI_CMD_DIR, intf,getStaP2pStartGrpForm->devId,getStaP2pStartGrpForm->intent_val);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_p2p_start_group_formation /interface %s /p2pdevid %s /intent_val %d", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaP2pStartGrpForm->devId,getStaP2pStartGrpForm->intent_val);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -3787,7 +3908,7 @@ int wfaStaP2pDissolve(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_p2p_dissolve /interface %s /groupid %s", WFA_CLI_CMD_DIR, intf,getStap2pDissolve->grpId);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_p2p_dissolve /interface %s /groupid %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStap2pDissolve->grpId);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -3836,9 +3957,9 @@ int wfaStaSendP2pInvReq(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
 	if(getStaP2pInvReq->grpId_flag == 1)
-		sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_send_p2p_invitation_req /interface %s /p2pdevid %s /groupid %s", WFA_CLI_CMD_DIR, intf,getStaP2pInvReq->devId,getStaP2pInvReq->grpId);
+		sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_send_p2p_invitation_req /interface %s /p2pdevid %s /groupid %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaP2pInvReq->devId,getStaP2pInvReq->grpId);
 	else
-		sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_send_p2p_invitation_req /interface %s /p2pdevid %s", WFA_CLI_CMD_DIR, intf,getStaP2pInvReq->devId);
+		sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_send_p2p_invitation_req /interface %s /p2pdevid %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaP2pInvReq->devId);
 
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
@@ -3891,9 +4012,9 @@ int wfaStaAcceptP2pReq(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
 	if(getStaP2pInvReq->grpId_flag == 1)
-		sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_accept_p2p_invitation_req /interface %s /p2pdevid %s /groupid %s", WFA_CLI_CMD_DIR, intf,getStaP2pInvReq->devId,getStaP2pInvReq->grpId);
+		sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_accept_p2p_invitation_req /interface %s /p2pdevid %s /groupid %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaP2pInvReq->devId,getStaP2pInvReq->grpId);
 	else
-		sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_accept_p2p_invitation_req /interface %s /p2pdevid %s", WFA_CLI_CMD_DIR, intf,getStaP2pInvReq->devId);
+		sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_accept_p2p_invitation_req /interface %s /p2pdevid %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaP2pInvReq->devId);
 
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
@@ -3943,7 +4064,7 @@ int wfaStaSendP2pProvDisReq(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_send_p2p_provision_dis_req /interface %s /configmethod %s /p2pdevid %s", WFA_CLI_CMD_DIR, intf,getStaP2pProvDisReq->confMethod,getStaP2pProvDisReq->devId);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_send_p2p_provision_dis_req /interface %s /configmethod %s /p2pdevid %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaP2pProvDisReq->confMethod,getStaP2pProvDisReq->devId);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -3992,7 +4113,7 @@ int wfaStaSetWpsPbc(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_set_wps_pbc /interface %s", WFA_CLI_CMD_DIR, intf);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_set_wps_pbc /interface %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -4041,7 +4162,7 @@ int wfaStaWpsReadPin(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_wps_read_pin /interface %s", WFA_CLI_CMD_DIR, intf);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_wps_read_pin /interface %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -4101,7 +4222,7 @@ int wfaStaWpsEnterPin(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_wps_enter_pin /interface %s /pin ", WFA_CLI_CMD_DIR, intf,getStaWpsEnterPin->wpsPin);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_wps_enter_pin /interface %s /pin ", wfaDutAgentData.WFA_CLI_CMD_DIR, intf,getStaWpsEnterPin->wpsPin);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 
@@ -4151,7 +4272,7 @@ int wfaStaGetPsk(int len, BYTE *caCmdBuf, int *respLen, BYTE *respBuf)
 	wfaClearEnvVal("WFA_CLI_STATUS");
 	wfaClearEnvVal("WFA_CLI_RETURN");
 
-	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_get_psk /interface %s", WFA_CLI_CMD_DIR, intf);
+	sprintf(wfaDutAgentData.gCmdStr, "cd %s & sta_get_psk /interface %s", wfaDutAgentData.WFA_CLI_CMD_DIR, intf);
 	system(wfaDutAgentData.gCmdStr);
 	DPRINT_INFOL(WFA_OUT, "CLI Command %s\n", wfaDutAgentData.gCmdStr);
 

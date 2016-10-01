@@ -30,6 +30,13 @@
 #include <WinSock2.h>
 #include <Ws2def.h>
 #include <ws2ipdef.h>
+#include <ws2tcpip.h>
+#include <traffic.h>
+#include <qosobjs.h>
+#include <mswsock.h>
+#include <iphlpapi.h>
+//#include <io.h>
+//#include <fcntl.h>
 
 #include "iphdr.h"
 #include <time.h>
