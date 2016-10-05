@@ -82,9 +82,10 @@ dutCommandRespFuncPtr wfaCmdRespProcFuncTbl[(WFA_STA_RESPONSE_END - WFA_STA_COMM
 	wfaStaReAssociationResp,
 	wfaStaSetPwrSaveResp,                /*    60 */
 	wfaStaSetPowerSaveResp,              /*    61 legacy power save */
+	wfaTrafficAgentVersionResp,
 	wfaStaCliCmdResp,
-#ifdef WFA_P2P
 
+#ifdef WFA_P2P
 	wfaStaGetP2pDevAddressResp,          
 	wfaStaSetP2pResp,   
 	wfaStaP2pConnectResp,
@@ -101,7 +102,7 @@ dutCommandRespFuncPtr wfaCmdRespProcFuncTbl[(WFA_STA_RESPONSE_END - WFA_STA_COMM
 	wfaStaWpsEnterPinResp,  
 	wfaStaGetPskResp,      
 #endif
-
+    
 };
 
 int caCmdNotDefinedYet(BYTE *cmdBuf)
@@ -385,6 +386,13 @@ int wfaTrafficAgentSendResp(BYTE *cmdBuf)
 			strncat(wfaCAAgetData.gRespStr, copyBuf, sizeof(copyBuf)-1);
 		}
 
+        strncat(wfaCAAgetData.gRespStr, ",txActFrames,", 13);
+        for(i=0; i<numStreams; i++) 
+        {
+            sprintf(copyBuf, "%i ", statResp[i].cmdru.stats.txActFrames);
+            strncat(wfaCAAgetData.gRespStr, copyBuf, sizeof(copyBuf)-1);
+        }
+
 		strncat(wfaCAAgetData.gRespStr, ",txFrames,", 10);
 		for(i=0; i<numStreams; i++) 
 		{
@@ -402,16 +410,17 @@ int wfaTrafficAgentSendResp(BYTE *cmdBuf)
 		strncat(wfaCAAgetData.gRespStr, ",txPayloadBytes,", 16);
 		for(i=0; i<numStreams; i++) 
 		{
-			sprintf(copyBuf, "%i ", statResp[i].cmdru.stats.txPayloadBytes);
+			sprintf(copyBuf, "%llu ", statResp[i].cmdru.stats.txPayloadBytes);
 			strncat(wfaCAAgetData.gRespStr, copyBuf, sizeof(copyBuf)-1);
 		}
 
 		strncat(wfaCAAgetData.gRespStr, ",rxPayloadBytes,", 16);
 		for(i=0; i<numStreams; i++) 
 		{
-			sprintf(copyBuf, "%i ", statResp[i].cmdru.stats.rxPayloadBytes);
+			sprintf(copyBuf, "%llu ", statResp[i].cmdru.stats.rxPayloadBytes);
 			strncat(wfaCAAgetData.gRespStr, copyBuf, sizeof(copyBuf)-1);
 		}
+
 		strncat(wfaCAAgetData.gRespStr, ",outOfSequenceFrames,", 20);
 		for(i=0; i<numStreams; i++) 
 		{
@@ -466,8 +475,6 @@ int wfaTrafficAgentRecvStopResp(BYTE *cmdBuf)
 	int len = ptlv->len;
 	int numStreams = len/sizeof(dutCmdResponse_t);
 
-	//DPRINT_INFO(WFA_OUT, "Entering wfaTrafficAgentRecvStopResp ...\n");
-
 	dutCmdResponse_t statResp[WFA_MAX_TRAFFIC_STREAMS];
 
 	DPRINT_INFO(WFA_OUT, "Entering wfaTrafficAgentRecvStopResp ...\n");
@@ -496,6 +503,13 @@ int wfaTrafficAgentRecvStopResp(BYTE *cmdBuf)
 			sprintf(copyBuf, " %d", statResp[i].streamId); 
 			strncat(wfaCAAgetData.gRespStr, copyBuf, sizeof(copyBuf)-1);
 		}
+
+        strncat(wfaCAAgetData.gRespStr, ",txActFrames,", 13);
+        for(i=0; i<numStreams; i++) 
+        {
+            sprintf(copyBuf, " %u", statResp[i].cmdru.stats.txActFrames);
+            strncat(wfaCAAgetData.gRespStr, copyBuf, sizeof(copyBuf)-1);
+        }
 
 		strncat(wfaCAAgetData.gRespStr, ",txFrames,", 10);
 		for(i=0; i<numStreams; i++) 
@@ -621,6 +635,33 @@ int wfaTrafficAgentPingStopResp(BYTE *cmdBuf)
 	DPRINT_INFO(WFA_OUT, "%s", wfaCAAgetData.gRespStr);
 	wfaCtrlSend(wfaCAAgetData.gCaSockfd, (BYTE *)wfaCAAgetData.gRespStr, strlen(wfaCAAgetData.gRespStr));
 	return done;
+}
+
+int wfaTrafficAgentVersionResp(BYTE *cmdBuf)
+{
+    int done=0;
+    dutCmdResponse_t *stpResp = (dutCmdResponse_t *) (cmdBuf + 4);
+
+    DPRINT_INFO(WFA_OUT, "Entering wfaTrafficAgentPingStartResp ...\n");
+    switch(stpResp->status)
+    {
+        case STATUS_RUNNING:
+        DPRINT_INFO(WFA_OUT, "wfaTrafficAgentPingStart running ...\n");
+        done = 1;
+        break;
+
+        case STATUS_COMPLETE:
+            sprintf(wfaCAAgetData.gRespStr, "status,COMPLETE,version,%s\r\n", stpResp->cmdru.version);
+        break;
+
+        default:
+        sprintf(wfaCAAgetData.gRespStr, "status,INVALID\r\n");
+    }
+
+    DPRINT_INFO(WFA_OUT, " %s\n", wfaCAAgetData.gRespStr);
+    wfaCtrlSend(wfaCAAgetData.gCaSockfd, (BYTE *)wfaCAAgetData.gRespStr, strlen(wfaCAAgetData.gRespStr));
+
+    return done;
 }
 
 int wfaStaGetMacAddressResp(BYTE *cmdBuf)
@@ -932,9 +973,13 @@ int wfaStaGetStatsResp(BYTE *cmdBuf)
 		break;
 
 	case STATUS_COMPLETE:
-		sprintf(wfaCAAgetData.gRespStr, "status,COMPLETE,txFrames,%i,rxFrames,%i,txMulticast,%i,rxMulticast,%i,fcsErrors,%i,txRetries,%i\r\n",
-			stats->txFrames, stats->rxFrames, stats->txMulticast, stats->rxMulticast, stats->fcsErrors, stats->txRetries);
-		break;
+        sprintf(wfaCAAgetData.gRespStr, "status,COMPLETE,txActFrames,%i,txFrames,%i,rxFrames,%i,txMulticast,%i,rxMulticast,%i,fcsErrors,%i,txRetries,%i\r\n",
+           stats->txActFrames, stats->txFrames, stats->rxFrames, stats->txMulticast, stats->rxMulticast, stats->fcsErrors, stats->txRetries);
+
+		//sprintf(wfaCAAgetData.gRespStr, "status,COMPLETE,txFrames,%i,rxFrames,%i,txMulticast,%i,rxMulticast,%i,fcsErrors,%i,txRetries,%i\r\n",
+		//	stats->txFrames, stats->rxFrames, stats->txMulticast, stats->rxMulticast, stats->fcsErrors, stats->txRetries);
+		
+        break;
 
 	case STATUS_ERROR:
 		sprintf(wfaCAAgetData.gRespStr, "status,ERROR\r\n");

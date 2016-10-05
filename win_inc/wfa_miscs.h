@@ -26,5 +26,7 @@ extern int wfa_itime_diff(struct timeval *t1, struct timeval *t2);
 char * strtok_r(char *string, const char *sepset, char **lasts);
 int strncasecmp(const char *s1, const char *s2, size_t n);
 int strcasecmp(const char *s1, const char *s2);
+char *ltrim(char *s);
+char *rtrim(char *s);
 
 #endif
