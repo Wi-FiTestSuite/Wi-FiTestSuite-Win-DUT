@@ -1761,8 +1761,7 @@ int wfaSendBitrateData(int mySockfd, int streamId, BYTE *pRespBuf, int *pRespLen
 	DPRINT_INFOL(WFA_OUT, "wfaSendBitrateData entering\n");
 
 	/* error check section  */
-	if ((mySockfd <= 0) || (streamId < 0) || ( pRespBuf == NULL) 
-		|| (pRespLen == NULL) || (*pRespLen < WFA_TLV_HDR_LEN+4))
+	if ((mySockfd <= 0) || (streamId < 0) || ( pRespBuf == NULL) || (pRespLen == NULL))
 	{
 		DPRINT_INFOL(WFA_OUT, "wfaSendBitrateData pass-in parameter err mySockfd=%i streamId=%i pRespBuf=0x%x pRespLen=0x%x, *pRespLen=%i\n",
 			mySockfd,streamId,pRespBuf,pRespLen,*pRespLen );
